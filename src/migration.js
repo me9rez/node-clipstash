@@ -1,0 +1,376 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+const MIGRATIONS_TABLE = 'schema_migrations';
+
+const migrations = [
+  {
+    version: 1,
+    name: 'create_initial_items_table',
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+          type TEXT NOT NULL DEFAULT 'url',
+          title TEXT,
+          url TEXT NOT NULL,
+
+          host TEXT,
+          owner TEXT,
+          repo TEXT,
+
+          status TEXT NOT NULL DEFAULT 'unread',
+          tags TEXT,
+          note TEXT,
+
+          first_seen_at TEXT,
+          last_seen_at TEXT,
+          seen_count INTEGER NOT NULL DEFAULT 1
+        );
+      `);
+
+      /**
+       * 如果 items 表是旧版本已经存在的，
+       * CREATE TABLE IF NOT EXISTS 不会补字段。
+       * 所以这里再逐个补齐字段，避免旧数据结构缺字段。
+       */
+      addColumnIfNotExists(db, 'items', 'type', `TEXT NOT NULL DEFAULT 'url'`);
+      addColumnIfNotExists(db, 'items', 'title', 'TEXT');
+      addColumnIfNotExists(db, 'items', 'url', `TEXT NOT NULL DEFAULT ''`);
+
+      addColumnIfNotExists(db, 'items', 'host', 'TEXT');
+      addColumnIfNotExists(db, 'items', 'owner', 'TEXT');
+      addColumnIfNotExists(db, 'items', 'repo', 'TEXT');
+
+      addColumnIfNotExists(db, 'items', 'status', `TEXT NOT NULL DEFAULT 'unread'`);
+      addColumnIfNotExists(db, 'items', 'tags', 'TEXT');
+      addColumnIfNotExists(db, 'items', 'note', 'TEXT');
+
+      addColumnIfNotExists(db, 'items', 'first_seen_at', 'TEXT');
+      addColumnIfNotExists(db, 'items', 'last_seen_at', 'TEXT');
+      addColumnIfNotExists(db, 'items', 'seen_count', 'INTEGER NOT NULL DEFAULT 1');
+
+      /**
+       * 补齐历史数据中可能为空的字段。
+       */
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        UPDATE items
+        SET type = 'url'
+        WHERE type IS NULL OR type = ''
+      `).run();
+
+      db.prepare(`
+        UPDATE items
+        SET status = 'unread'
+        WHERE status IS NULL OR status = ''
+      `).run();
+
+      db.prepare(`
+        UPDATE items
+        SET seen_count = 1
+        WHERE seen_count IS NULL OR seen_count < 1
+      `).run();
+
+      db.prepare(`
+        UPDATE items
+        SET first_seen_at = ?
+        WHERE first_seen_at IS NULL OR first_seen_at = ''
+      `).run(now);
+
+      db.prepare(`
+        UPDATE items
+        SET last_seen_at = first_seen_at
+        WHERE last_seen_at IS NULL OR last_seen_at = ''
+      `).run();
+
+      /**
+       * 索引。
+       *
+       * url 唯一索引用于去重。
+       * 如果你的历史数据里已经有重复 url，创建唯一索引会失败。
+       * 所以这里先清理重复 URL，只保留最早那条 id。
+       */
+      removeDuplicateUrls(db);
+
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_items_url_unique ON items(url);
+        CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
+        CREATE INDEX IF NOT EXISTS idx_items_host ON items(host);
+        CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
+        CREATE INDEX IF NOT EXISTS idx_items_last_seen_at ON items(last_seen_at);
+      `);
+    },
+  },
+];
+
+export function runMigrations({
+  db,
+  dbPath,
+  dataDir,
+  backup = true,
+}) {
+  if (!db) {
+    throw new Error('runMigrations requires db');
+  }
+
+  ensureMigrationsTable(db);
+
+  const pendingMigrations = migrations.filter((migration) => {
+    return !isMigrationApplied(db, migration.version);
+  });
+
+  if (pendingMigrations.length === 0) {
+    return {
+      applied: [],
+      backupPath: null,
+    };
+  }
+
+  let backupPath = null;
+
+  if (backup) {
+    backupPath = backupDatabase({
+      dbPath,
+      dataDir,
+      reason: `before-migration-v${pendingMigrations[0].version}-to-v${pendingMigrations.at(-1).version}`,
+    });
+  }
+
+  const applied = [];
+
+  for (const migration of pendingMigrations) {
+    applySingleMigration(db, migration);
+    applied.push({
+      version: migration.version,
+      name: migration.name,
+    });
+  }
+
+  return {
+    applied,
+    backupPath,
+  };
+}
+
+function ensureMigrationsTable(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
+      version INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      applied_at TEXT NOT NULL
+    );
+  `);
+}
+
+function isMigrationApplied(db, version) {
+  const row = db
+    .prepare(`
+      SELECT version
+      FROM ${MIGRATIONS_TABLE}
+      WHERE version = ?
+    `)
+    .get(version);
+
+  return Boolean(row);
+}
+
+function applySingleMigration(db, migration) {
+  console.log(`[migration] applying ${migration.version}: ${migration.name}`);
+
+  db.exec('BEGIN IMMEDIATE');
+
+  try {
+    migration.up(db);
+
+    db
+      .prepare(`
+        INSERT INTO ${MIGRATIONS_TABLE} (version, name, applied_at)
+        VALUES (?, ?, ?)
+      `)
+      .run(
+        migration.version,
+        migration.name,
+        new Date().toISOString()
+      );
+
+    db.exec('COMMIT');
+
+    console.log(`[migration] applied ${migration.version}: ${migration.name}`);
+  } catch (error) {
+    db.exec('ROLLBACK');
+
+    console.error(`[migration] failed ${migration.version}: ${migration.name}`);
+    throw error;
+  }
+}
+
+function addColumnIfNotExists(db, tableName, columnName, columnDefinition) {
+  if (columnExists(db, tableName, columnName)) {
+    return false;
+  }
+
+  assertSafeIdentifier(tableName);
+  assertSafeIdentifier(columnName);
+
+  db.exec(`
+    ALTER TABLE ${tableName}
+    ADD COLUMN ${columnName} ${columnDefinition}
+  `);
+
+  return true;
+}
+
+function columnExists(db, tableName, columnName) {
+  assertSafeIdentifier(tableName);
+
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+
+  return columns.some((column) => column.name === columnName);
+}
+
+/**
+ * 创建唯一 url 索引前，先处理重复 URL。
+ *
+ * 策略：
+ * - 保留同一个 url 中 id 最小的一条
+ * - 合并 seen_count
+ * - last_seen_at 取最大值
+ * - 删除其他重复项
+ *
+ * 这样不会完全丢失重复记录的“出现次数”和最近出现时间。
+ */
+function removeDuplicateUrls(db) {
+  const duplicates = db.prepare(`
+    SELECT url
+    FROM items
+    WHERE url IS NOT NULL AND url != ''
+    GROUP BY url
+    HAVING COUNT(*) > 1
+  `).all();
+
+  for (const row of duplicates) {
+    const url = row.url;
+
+    const records = db.prepare(`
+      SELECT *
+      FROM items
+      WHERE url = ?
+      ORDER BY id ASC
+    `).all(url);
+
+    if (records.length <= 1) {
+      continue;
+    }
+
+    const keeper = records[0];
+    const rest = records.slice(1);
+
+    const totalSeenCount = records.reduce((sum, item) => {
+      return sum + Number(item.seen_count || 1);
+    }, 0);
+
+    const latestSeenAt = records
+      .map((item) => item.last_seen_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1) || keeper.last_seen_at;
+
+    db.prepare(`
+      UPDATE items
+      SET seen_count = ?,
+          last_seen_at = ?
+      WHERE id = ?
+    `).run(
+      totalSeenCount,
+      latestSeenAt,
+      keeper.id
+    );
+
+    const idsToDelete = rest.map((item) => item.id);
+
+    const placeholders = idsToDelete.map(() => '?').join(', ');
+
+    db.prepare(`
+      DELETE FROM items
+      WHERE id IN (${placeholders})
+    `).run(...idsToDelete);
+
+    console.log(`[migration] merged duplicate url: ${url}`);
+  }
+}
+
+function backupDatabase({
+  dbPath,
+  dataDir,
+  reason = 'manual',
+}) {
+  if (!dbPath) {
+    throw new Error('backupDatabase requires dbPath');
+  }
+
+  if (!fs.existsSync(dbPath)) {
+    return null;
+  }
+
+  const backupDir = path.join(dataDir || path.dirname(dbPath), 'backups');
+  fs.mkdirSync(backupDir, { recursive: true });
+
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, '-');
+
+  const dbBaseName = path.basename(dbPath);
+  const backupBaseName = `${dbBaseName}.${timestamp}.${sanitizeFilePart(reason)}`;
+  const backupMainPath = path.join(backupDir, backupBaseName);
+
+  copyIfExists(dbPath, backupMainPath);
+  copyIfExists(`${dbPath}-wal`, `${backupMainPath}-wal`);
+  copyIfExists(`${dbPath}-shm`, `${backupMainPath}-shm`);
+
+  console.log(`[db] backup created: ${backupMainPath}`);
+
+  return backupMainPath;
+}
+
+function copyIfExists(from, to) {
+  if (fs.existsSync(from)) {
+    fs.copyFileSync(from, to);
+  }
+}
+
+function sanitizeFilePart(value) {
+  return String(value)
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 80);
+}
+
+function assertSafeIdentifier(identifier) {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(identifier)) {
+    throw new Error(`Unsafe SQL identifier: ${identifier}`);
+  }
+}
+
+// {
+//   version: 2,
+//   name: 'add_github_readme_fields',
+//   up(db) {
+//     addColumnIfNotExists(db, 'items', 'github_description', 'TEXT');
+//     addColumnIfNotExists(db, 'items', 'github_stars', 'INTEGER');
+//     addColumnIfNotExists(db, 'items', 'github_language', 'TEXT');
+
+//     addColumnIfNotExists(db, 'items', 'readme_path', 'TEXT');
+//     addColumnIfNotExists(db, 'items', 'readme_sha', 'TEXT');
+//     addColumnIfNotExists(db, 'items', 'readme_etag', 'TEXT');
+//     addColumnIfNotExists(db, 'items', 'readme_updated_at', 'TEXT');
+//     addColumnIfNotExists(db, 'items', 'readme_checked_at', 'TEXT');
+
+//     db.exec(`
+//       CREATE INDEX IF NOT EXISTS idx_items_owner_repo ON items(owner, repo);
+//       CREATE INDEX IF NOT EXISTS idx_items_readme_checked_at ON items(readme_checked_at);
+//     `);
+//   },
+// }

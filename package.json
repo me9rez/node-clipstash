@@ -1,10 +1,11 @@
 {
   "name": "node-clipstash",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.1",
+  "description": "Save useful links from your clipboard into your personal knowledge vault.",
+  "description-zh":"从剪贴板自动收藏值得回看的链接",
   "type": "module",
   "scripts": {
-    "start": "node src/main.js",
+    "start": "pnpm run build:web && node src/main.js",
     "dev:web": "vite --host 127.0.0.1 --port 5173 --config web/vite.config.js",
     "build:web": "vite build --config web/vite.config.js",
     "start:server": "node src/server.js",

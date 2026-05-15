@@ -24,6 +24,8 @@ const editingId = ref(null);
 const editingNote = ref('');
 const editingTags = ref('');
 
+const viewMode = ref('flat');
+
 const hasPrev = computed(() => offset.value > 0);
 const hasNext = computed(() => offset.value + limit.value < total.value);
 
@@ -35,6 +37,58 @@ const pageText = computed(() => {
 
   return `${start}-${end} / ${total.value}`;
 });
+
+const githubCount = computed(() =>
+  stats.value?.byType.find((item) => item.type === 'github-repo')?.count || 0
+);
+
+const unreadCount = computed(() =>
+  stats.value?.byStatus.find((item) => item.status === 'unread')?.count || 0
+);
+
+const groupedItems = computed(() => {
+  const groups = new Map();
+
+  for (const item of items.value) {
+    const dateKey = item.first_seen_at
+      ? item.first_seen_at.slice(0, 10)
+      : '__unknown__';
+
+    if (!groups.has(dateKey)) {
+      groups.set(dateKey, []);
+    }
+
+    groups.get(dateKey).push(item);
+  }
+
+  const sorted = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
+
+  return sorted.map(([dateKey, group]) => ({
+    dateKey,
+    label: formatGroupDate(group[0].first_seen_at),
+    count: group.length,
+    items: group,
+  }));
+});
+
+function formatGroupDate(dateStr) {
+  if (!dateStr) return '未知日期';
+
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return '今天';
+  if (date.toDateString() === yesterday.toDateString()) return '昨天';
+
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
 
 let searchTimer = null;
 
@@ -172,42 +226,32 @@ function hostLabel(item) {
 
   return item.host;
 }
+
+function splitTags(tags) {
+  if (!tags) return [];
+  return tags.split(',').map((t) => t.trim()).filter(Boolean);
+}
 </script>
 
 <template>
   <main class="page">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Clipstash</p>
-        <h1>剪贴板收藏库</h1>
-        <p class="subtitle">
-          自动捕获你复制过的 GitHub 仓库、博客文章和有价值链接。
-        </p>
-      </div>
+    <header class="page-header">
+      <p class="eyebrow">Clipstash</p>
+      <h1>剪贴板收藏库</h1>
+      <p class="subtitle">
+        自动捕获你复制过的 GitHub 仓库、博客文章和有价值链接。
+      </p>
 
-      <div class="stats" v-if="stats">
-        <div class="stat-card">
-          <span>总收藏</span>
-          <strong>{{ stats.total }}</strong>
-        </div>
-
-        <div class="stat-card">
-          <span>GitHub</span>
-          <strong>
-            {{ stats.byType.find((item) => item.type === 'github-repo')?.count || 0 }}
-          </strong>
-        </div>
-
-        <div class="stat-card">
-          <span>未读</span>
-          <strong>
-            {{ stats.byStatus.find((item) => item.status === 'unread')?.count || 0 }}
-          </strong>
-        </div>
-      </div>
+      <p v-if="stats" class="inline-stats">
+        <span>总收藏 <strong>{{ stats.total }}</strong></span>
+        <span class="stat-sep">·</span>
+        <span>GitHub <strong>{{ githubCount }}</strong></span>
+        <span class="stat-sep">·</span>
+        <span>未读 <strong>{{ unreadCount }}</strong></span>
+      </p>
     </header>
 
-    <section class="toolbar">
+    <div class="toolbar">
       <input
         v-model="q"
         class="search"
@@ -228,131 +272,259 @@ function hostLabel(item) {
       </select>
 
       <button @click="loadItems" :disabled="loading">
-        刷新
+        {{ loading ? '刷新中...' : '刷新' }}
       </button>
-    </section>
 
-    <p v-if="error" class="error">
-      {{ error }}
-    </p>
+      <div class="view-toggle">
+        <button
+          :class="{ active: viewMode === 'flat' }"
+          @click="viewMode = 'flat'"
+        >
+          平铺
+        </button>
+        <button
+          :class="{ active: viewMode === 'grouped' }"
+          @click="viewMode = 'grouped'"
+        >
+          按天
+        </button>
+      </div>
+    </div>
 
-    <section class="list">
-      <article
-        v-for="item in items"
-        :key="item.id"
-        class="item-card"
-        :class="{ archived: item.status === 'archived' }"
-      >
-        <div class="item-main">
-          <div class="item-top">
-            <span class="badge" :class="item.type">
-              {{ item.type === 'github-repo' ? 'GitHub' : 'URL' }}
-            </span>
+    <div class="list-wrapper">
+      <p v-if="error" class="error">
+        {{ error }}
+      </p>
 
-            <span class="status" :class="item.status">
-              {{ item.status }}
-            </span>
+      <section class="list">
+        <template v-if="viewMode === 'flat'">
+          <article
+            v-for="item in items"
+            :key="item.id"
+            class="item-card"
+            :class="{ archived: item.status === 'archived' }"
+          >
+            <div class="item-meta">
+              <span class="badge" :class="item.type">
+                {{ item.type === 'github-repo' ? 'GitHub' : 'URL' }}
+              </span>
+              <span class="status-dot" :class="item.status"></span>
+              <span class="meta-text">{{ hostLabel(item) }}</span>
+              <span class="meta-sep">·</span>
+              <span class="meta-text">copied {{ item.seen_count }}x</span>
+              <span class="meta-sep">·</span>
+              <span class="meta-text">{{ formatDate(item.first_seen_at) }}</span>
+              <span class="meta-sep">·</span>
+              <span class="meta-text">{{ formatDate(item.last_seen_at) }}</span>
+            </div>
 
-            <span class="seen">
-              copied {{ item.seen_count }}x
-            </span>
-          </div>
+            <h2 class="item-title">
+              <a
+                href="#"
+                @click.prevent="openUrl(item.url)"
+              >{{ item.title || item.url }}</a>
+            </h2>
 
-          <h2>
-            {{ item.title || item.url }}
-          </h2>
+            <p class="item-url">{{ item.url }}</p>
 
-          <p class="url">
-            {{ item.url }}
-          </p>
+            <div class="item-tags" v-if="item.tags">
+              <span
+                v-for="tag in splitTags(item.tags)"
+                :key="tag"
+                class="tag"
+              >#{{ tag }}</span>
+            </div>
 
-          <div class="meta">
-            <span>{{ hostLabel(item) }}</span>
-            <span>首次：{{ formatDate(item.first_seen_at) }}</span>
-            <span>最近：{{ formatDate(item.last_seen_at) }}</span>
-          </div>
+            <p v-if="item.note && editingId !== item.id" class="item-note">
+              {{ item.note }}
+            </p>
 
-          <div v-if="item.tags" class="tags">
-            {{ item.tags }}
-          </div>
+            <div v-if="editingId === item.id" class="item-editor">
+              <input
+                v-model="editingTags"
+                placeholder="tags，例如：frontend, read-later"
+              />
 
-          <p v-if="item.note" class="note">
-            {{ item.note }}
-          </p>
+              <textarea
+                v-model="editingNote"
+                rows="3"
+                placeholder="写一点备注..."
+              />
 
-          <div v-if="editingId === item.id" class="editor">
-            <input
-              v-model="editingTags"
-              placeholder="tags，例如：frontend, read-later"
-            />
+              <div class="editor-actions">
+                <button class="btn-primary" @click="saveEdit(item)">
+                  保存
+                </button>
+                <button class="btn-ghost" @click="cancelEdit">
+                  取消
+                </button>
+              </div>
+            </div>
 
-            <textarea
-              v-model="editingNote"
-              rows="4"
-              placeholder="写一点备注..."
-            />
-
-            <div class="actions">
-              <button class="primary" @click="saveEdit(item)">
-                保存
+            <div class="item-actions">
+              <button class="btn-primary" @click="openUrl(item.url)">
+                打开
               </button>
-              <button @click="cancelEdit">
-                取消
+
+              <button
+                v-if="item.status !== 'read'"
+                class="btn-ghost"
+                @click="setStatus(item, 'read')"
+              >
+                已读
+              </button>
+
+              <button
+                v-if="item.status !== 'unread'"
+                class="btn-ghost"
+                @click="setStatus(item, 'unread')"
+              >
+                未读
+              </button>
+
+              <button
+                v-if="item.status !== 'archived'"
+                class="btn-ghost"
+                @click="setStatus(item, 'archived')"
+              >
+                归档
+              </button>
+
+              <button class="btn-ghost" @click="startEdit(item)">
+                备注
+              </button>
+
+              <button class="btn-danger-ghost" @click="removeItem(item)">
+                删除
               </button>
             </div>
-          </div>
+          </article>
+        </template>
+
+        <template v-else>
+          <template v-for="group in groupedItems" :key="group.dateKey">
+            <div class="date-header">
+              <span class="date-label">{{ group.label }}</span>
+              <span class="date-count">{{ group.count }} 条</span>
+            </div>
+
+            <article
+              v-for="item in group.items"
+              :key="item.id"
+              class="item-card"
+              :class="{ archived: item.status === 'archived' }"
+            >
+              <div class="item-meta">
+                <span class="badge" :class="item.type">
+                  {{ item.type === 'github-repo' ? 'GitHub' : 'URL' }}
+                </span>
+                <span class="status-dot" :class="item.status"></span>
+                <span class="meta-text">{{ hostLabel(item) }}</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-text">copied {{ item.seen_count }}x</span>
+              </div>
+
+              <h2 class="item-title">
+                <a
+                  href="#"
+                  @click.prevent="openUrl(item.url)"
+                >{{ item.title || item.url }}</a>
+              </h2>
+
+              <p class="item-url">{{ item.url }}</p>
+
+              <div class="item-tags" v-if="item.tags">
+                <span
+                  v-for="tag in splitTags(item.tags)"
+                  :key="tag"
+                  class="tag"
+                >#{{ tag }}</span>
+              </div>
+
+              <p v-if="item.note && editingId !== item.id" class="item-note">
+                {{ item.note }}
+              </p>
+
+              <div v-if="editingId === item.id" class="item-editor">
+                <input
+                  v-model="editingTags"
+                  placeholder="tags，例如：frontend, read-later"
+                />
+
+                <textarea
+                  v-model="editingNote"
+                  rows="3"
+                  placeholder="写一点备注..."
+                />
+
+                <div class="editor-actions">
+                  <button class="btn-primary" @click="saveEdit(item)">
+                    保存
+                  </button>
+                  <button class="btn-ghost" @click="cancelEdit">
+                    取消
+                  </button>
+                </div>
+              </div>
+
+              <div class="item-actions">
+                <button class="btn-primary" @click="openUrl(item.url)">
+                  打开
+                </button>
+
+                <button
+                  v-if="item.status !== 'read'"
+                  class="btn-ghost"
+                  @click="setStatus(item, 'read')"
+                >
+                  已读
+                </button>
+
+                <button
+                  v-if="item.status !== 'unread'"
+                  class="btn-ghost"
+                  @click="setStatus(item, 'unread')"
+                >
+                  未读
+                </button>
+
+                <button
+                  v-if="item.status !== 'archived'"
+                  class="btn-ghost"
+                  @click="setStatus(item, 'archived')"
+                >
+                  归档
+                </button>
+
+                <button class="btn-ghost" @click="startEdit(item)">
+                  备注
+                </button>
+
+                <button class="btn-danger-ghost" @click="removeItem(item)">
+                  删除
+                </button>
+              </div>
+            </article>
+          </template>
+        </template>
+
+        <div v-if="!loading && items.length === 0" class="empty">
+          暂无收藏。
+          <br />
+          复制一个 GitHub 仓库链接或文章链接试试。
         </div>
-
-        <div class="item-actions">
-          <button class="primary" @click="openUrl(item.url)">
-            打开
-          </button>
-
-          <button
-            v-if="item.status !== 'read'"
-            @click="setStatus(item, 'read')"
-          >
-            标为已读
-          </button>
-
-          <button
-            v-if="item.status !== 'unread'"
-            @click="setStatus(item, 'unread')"
-          >
-            标为未读
-          </button>
-
-          <button
-            v-if="item.status !== 'archived'"
-            @click="setStatus(item, 'archived')"
-          >
-            归档
-          </button>
-
-          <button @click="startEdit(item)">
-            备注
-          </button>
-
-          <button class="danger" @click="removeItem(item)">
-            删除
-          </button>
-        </div>
-      </article>
-
-      <div v-if="!loading && items.length === 0" class="empty">
-        暂无收藏。复制一个 GitHub 仓库链接或文章链接试试。
-      </div>
-    </section>
+      </section>
+    </div>
 
     <footer class="pager">
       <button @click="prevPage" :disabled="!hasPrev">
-        上一页
+        &larr; 上一页
       </button>
 
-      <span>{{ pageText }}</span>
+      <span class="page-info">{{ pageText }}</span>
 
       <button @click="nextPage" :disabled="!hasNext">
-        下一页
+        下一页 &rarr;
       </button>
     </footer>
   </main>

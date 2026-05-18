@@ -5,11 +5,12 @@
   "description-zh": "从剪贴板自动收藏值得回看的链接",
   "type": "module",
   "scripts": {
-    "start": "pnpm run build:web && node src/main.js",
+    "start": "pnpm run build:web && tsx src/main.ts",
     "dev:web": "vite --host 127.0.0.1 --port 5173 --config web/vite.config.js",
     "build:web": "vite build --config web/vite.config.js",
-    "start:server": "node src/server.js",
-    "list": "node src/cli.js list"
+    "start:server": "tsx src/server.ts",
+    "list": "tsx src/cli.ts list",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -23,8 +24,11 @@
   },
   "devDependencies": {
     "@types/node": "^25.8.0",
+    "@types/node-notifier": "^8.0.5",
     "@vitejs/plugin-vue": "^6.0.7",
+    "esbuild": "^0.28.0",
     "tsdown": "^0.22.0",
+    "tsx": "^4.22.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.13",
     "vue": "^3.5.34"

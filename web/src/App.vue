@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import {
   fetchItems,
@@ -6,9 +6,10 @@ import {
   updateItem,
   deleteItem as deleteItemApi,
 } from './api.js';
+import type { Item, Stats } from './api.js';
 
-const items = ref([]);
-const stats = ref(null);
+const items = ref<Item[]>([]);
+const stats = ref<Stats | null>(null);
 const loading = ref(false);
 const error = ref('');
 
@@ -20,7 +21,7 @@ const limit = ref(50);
 const offset = ref(0);
 const total = ref(0);
 
-const editingId = ref(null);
+const editingId = ref<number | null>(null);
 const editingNote = ref('');
 const editingTags = ref('');
 
@@ -47,7 +48,7 @@ const unreadCount = computed(() =>
 );
 
 const groupedItems = computed(() => {
-  const groups = new Map();
+  const groups = new Map<string, Item[]>();
 
   for (const item of items.value) {
     const dateKey = item.first_seen_at
@@ -58,7 +59,7 @@ const groupedItems = computed(() => {
       groups.set(dateKey, []);
     }
 
-    groups.get(dateKey).push(item);
+    groups.get(dateKey)!.push(item);
   }
 
   const sorted = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
@@ -71,7 +72,7 @@ const groupedItems = computed(() => {
   }));
 });
 
-function formatGroupDate(dateStr) {
+function formatGroupDate(dateStr: string | null) {
   if (!dateStr) return '未知日期';
 
   const date = new Date(dateStr);
@@ -90,10 +91,10 @@ function formatGroupDate(dateStr) {
   });
 }
 
-let searchTimer = null;
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch([q, type, status], () => {
-  clearTimeout(searchTimer);
+  if (searchTimer) clearTimeout(searchTimer);
 
   searchTimer = setTimeout(() => {
     offset.value = 0;
@@ -132,17 +133,17 @@ async function loadItems() {
     items.value = result.items;
     total.value = result.total;
   } catch (err) {
-    error.value = err.message;
+    error.value = (err as Error).message;
   } finally {
     loading.value = false;
   }
 }
 
-function openUrl(url) {
+function openUrl(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-async function setStatus(item, nextStatus) {
+async function setStatus(item: Item, nextStatus: Item['status']) {
   const updated = await updateItem(item.id, {
     status: nextStatus,
   });
@@ -151,7 +152,7 @@ async function setStatus(item, nextStatus) {
   await loadStats();
 }
 
-function startEdit(item) {
+function startEdit(item: Item) {
   editingId.value = item.id;
   editingNote.value = item.note || '';
   editingTags.value = item.tags || '';
@@ -163,7 +164,7 @@ function cancelEdit() {
   editingTags.value = '';
 }
 
-async function saveEdit(item) {
+async function saveEdit(item: Item) {
   const updated = await updateItem(item.id, {
     note: editingNote.value,
     tags: editingTags.value,
@@ -173,7 +174,7 @@ async function saveEdit(item) {
   cancelEdit();
 }
 
-async function removeItem(item) {
+async function removeItem(item: Item) {
   const confirmed = window.confirm(`确定删除：${item.title || item.url}？`);
 
   if (!confirmed) return;
@@ -185,7 +186,7 @@ async function removeItem(item) {
   ]);
 }
 
-function replaceItem(updated) {
+function replaceItem(updated: Item) {
   const index = items.value.findIndex((item) => item.id === updated.id);
 
   if (index !== -1) {
@@ -207,7 +208,7 @@ function nextPage() {
   loadItems();
 }
 
-function formatDate(value) {
+function formatDate(value: string | null) {
   if (!value) return '-';
 
   const date = new Date(value);
@@ -219,15 +220,15 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
-function hostLabel(item) {
+function hostLabel(item: Item) {
   if (item.type === 'github-repo') {
-    return item.owner && item.repo ? `${item.owner}/${item.repo}` : item.host;
+    return item.owner && item.repo ? `${item.owner}/${item.repo}` : item.host || '';
   }
 
-  return item.host;
+  return item.host || '';
 }
 
-function splitTags(tags) {
+function splitTags(tags: string | null) {
   if (!tags) return [];
   return tags.split(',').map((t) => t.trim()).filter(Boolean);
 }

@@ -21,12 +21,12 @@
 ## 架构
 
 - **ESM 项目**（`"type": "module"`）。
-- `src/main.js` — 主入口（剪贴板监听 + 内置服务器）。
-- `src/server.js` — Hono API 服务器（CRUD + 静态文件）。
-- `src/watcher.js` — 基于 `clipboardy` 轮询剪贴板，间隔 1 秒。
-- `src/parser.js` — 解析剪贴板文本（GitHub URL/SSH、普通 URL）。
-- `src/db.js` — SQLite 数据库操作，使用 **Node.js 内置 `node:sqlite`**（无需额外包）。
-- `src/migration.js` — 数据库迁移系统（自动备份到 `data/backups/`）。
+- `src/main.ts` — 主入口（剪贴板监听 + 内置服务器）。
+- `src/server.ts` — Hono API 服务器（CRUD + 静态文件）。
+- `src/watcher.ts` — 基于 `clipboardy` 轮询剪贴板，间隔 1 秒。
+- `src/parser.ts` — 解析剪贴板文本（GitHub URL/SSH、普通 URL）。
+- `src/db.ts` — SQLite 数据库操作，使用 **Node.js 内置 `node:sqlite`**（无需额外包）。
+- `src/migration.ts` — 数据库迁移系统（自动备份到 `data/backups/`）。
 - `web/src/` — Vue 3 前端（Vite + 单文件组件）。
 
 ## 数据库
@@ -37,6 +37,6 @@
 
 ## 注意事项
 
-- **无测试框架、无 lint、无 typecheck** 配置。package.json 中没有任何相关脚本。
-- `src/notify.js` 使用 `node-notifier` 发送桌面通知（文件名为 `notify.js`）。
-- 仅有一个迁移（v1: 创建 items 表），后续迁移模板在 `migration.js:357-376`。
+- 项目已配置 TypeScript，`pnpm run type-check` 可运行 `tsc --noEmit`。
+- `src/notify.ts` 使用 `node-notifier` 发送桌面通知。
+- 仅有一个迁移（v1: 创建 items 表），后续迁移模板在 `migration.ts:396-416`。

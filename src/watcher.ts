@@ -3,15 +3,20 @@ import { parseClipboardText } from './parser.js';
 import { saveItem } from './db.js';
 import { notifySaved } from './notify.js';
 
+export interface WatcherOptions {
+  interval?: number;
+  notifyDuplicates?: boolean;
+}
+
 export function startClipboardWatcher({
   interval = 1000,
   notifyDuplicates = false,
-} = {}) {
+}: WatcherOptions = {}): () => void {
   let lastText = '';
-  let timer = null;
+  let timer: ReturnType<typeof setInterval> | null = null;
   let busy = false;
 
-  async function tick() {
+  async function tick(): Promise<void> {
     if (busy) return;
     busy = true;
 
@@ -39,7 +44,7 @@ export function startClipboardWatcher({
         }
       }
     } catch (error) {
-      console.error('[watcher:error]', error.message);
+      console.error('[watcher:error]', (error as Error).message);
     } finally {
       busy = false;
     }
@@ -49,5 +54,7 @@ export function startClipboardWatcher({
 
   tick();
 
-  return () => clearInterval(timer);
+  return () => {
+    if (timer) clearInterval(timer);
+  };
 }

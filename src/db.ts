@@ -1,14 +1,58 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import type { SQLInputValue } from 'node:sqlite';
 import { runMigrations } from './migration.js';
+import type { ParsedItem } from './parser.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'clipmark.db');
 
-let db;
+let db: DatabaseSync | undefined;
 
-export function initDb() {
+export interface DbItem {
+  id: number;
+  type: 'github-repo' | 'url';
+  title: string | null;
+  url: string;
+  host: string | null;
+  owner: string | null;
+  repo: string | null;
+  status: 'unread' | 'read' | 'archived';
+  tags: string | null;
+  note: string | null;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+  seen_count: number;
+}
+
+export interface SaveItemResult {
+  created: boolean;
+  item: DbItem;
+}
+
+export interface ListItemsOptions {
+  limit?: number;
+  offset?: number;
+  type?: string;
+  status?: string;
+  q?: string;
+}
+
+export interface ListItemsResult {
+  items: DbItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface StatsResult {
+  total: number;
+  byType: { type: string; count: number }[];
+  byStatus: { status: string; count: number }[];
+}
+
+export function initDb(): DatabaseSync {
   if (db) {
     return db;
   }
@@ -36,21 +80,21 @@ export function initDb() {
   return db;
 }
 
-export function getDb() {
+export function getDb(): DatabaseSync {
   if (!db) {
     initDb();
   }
 
-  return db;
+  return db!;
 }
 
-export function saveItem(item) {
+export function saveItem(item: ParsedItem): SaveItemResult {
   const database = getDb();
   const now = new Date().toISOString();
 
   const existing = database
     .prepare('SELECT * FROM items WHERE url = ?')
-    .get(item.url);
+    .get(item.url) as DbItem | undefined;
 
   if (existing) {
     database.prepare(`
@@ -97,7 +141,12 @@ export function saveItem(item) {
     created: true,
     item: {
       id: Number(result.lastInsertRowid),
-      ...item,
+      type: item.type,
+      title: item.title,
+      url: item.url,
+      host: item.host,
+      owner: item.owner,
+      repo: item.repo,
       status: 'unread',
       tags: null,
       note: null,
@@ -108,12 +157,12 @@ export function saveItem(item) {
   };
 }
 
-export function listItems({ limit = 50, offset = 0, type, status, q } = {}) {
+export function listItems({ limit = 50, offset = 0, type, status, q }: ListItemsOptions = {}): ListItemsResult {
   const database = getDb();
 
-  const where = [];
-  const queryParams = {};
-  const listParams = {
+  const where: string[] = [];
+  const queryParams: Record<string, SQLInputValue> = {};
+  const listParams: Record<string, SQLInputValue> = {
     '@limit': limit,
     '@offset': offset,
   };
@@ -155,13 +204,13 @@ export function listItems({ limit = 50, offset = 0, type, status, q } = {}) {
     ${whereSql}
     ORDER BY last_seen_at DESC
     LIMIT @limit OFFSET @offset
-  `).all(listParams);
+  `).all(listParams) as unknown as DbItem[];
 
   const totalRow = database.prepare(`
     SELECT COUNT(*) AS count
     FROM items
     ${whereSql}
-  `).get(queryParams);
+  `).get(queryParams) as { count: number } | undefined;
 
   return {
     items,
@@ -171,29 +220,29 @@ export function listItems({ limit = 50, offset = 0, type, status, q } = {}) {
   };
 }
 
-export function getItemById(id) {
+export function getItemById(id: number): DbItem | undefined {
   const database = getDb();
 
   return database.prepare(`
     SELECT *
     FROM items
     WHERE id = ?
-  `).get(id);
+  `).get(id) as DbItem | undefined;
 }
 
-export function updateItem(id, patch) {
+export function updateItem(id: number, patch: Partial<Pick<DbItem, 'title' | 'status' | 'tags' | 'note'>>): DbItem | undefined {
   const database = getDb();
 
-  const allowedFields = ['title', 'status', 'tags', 'note'];
+  const allowedFields = ['title', 'status', 'tags', 'note'] as const;
   const entries = Object.entries(patch)
-    .filter(([key]) => allowedFields.includes(key));
+    .filter(([key]) => (allowedFields as readonly string[]).includes(key));
 
   if (entries.length === 0) {
     return getItemById(id);
   }
 
-  const sets = [];
-  const params = {
+  const sets: string[] = [];
+  const params: Record<string, SQLInputValue> = {
     '@id': id,
   };
 
@@ -213,7 +262,7 @@ export function updateItem(id, patch) {
   return getItemById(id);
 }
 
-export function deleteItem(id) {
+export function deleteItem(id: number): boolean {
   const database = getDb();
 
   const item = getItemById(id);
@@ -230,27 +279,27 @@ export function deleteItem(id) {
   return true;
 }
 
-export function getStats() {
+export function getStats(): StatsResult {
   const database = getDb();
 
   const totalRow = database.prepare(`
     SELECT COUNT(*) AS count
     FROM items
-  `).get();
+  `).get() as { count: number } | undefined;
 
   const byType = database.prepare(`
     SELECT type, COUNT(*) AS count
     FROM items
     GROUP BY type
     ORDER BY count DESC
-  `).all();
+  `).all() as { type: string; count: number }[];
 
   const byStatus = database.prepare(`
     SELECT status, COUNT(*) AS count
     FROM items
     GROUP BY status
     ORDER BY count DESC
-  `).all();
+  `).all() as { status: string; count: number }[];
 
   return {
     total: totalRow?.count ?? 0,

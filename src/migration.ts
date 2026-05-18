@@ -1,9 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
 
 const MIGRATIONS_TABLE = 'schema_migrations';
 
-const migrations = [
+interface Migration {
+  version: number;
+  name: string;
+  up(db: DatabaseSync): void;
+}
+
+const migrations: Migration[] = [
   {
     version: 1,
     name: 'create_initial_items_table',
@@ -106,12 +113,29 @@ const migrations = [
   },
 ];
 
+export interface AppliedMigration {
+  version: number;
+  name: string;
+}
+
+export interface MigrationResult {
+  applied: AppliedMigration[];
+  backupPath: string | null;
+}
+
+export interface RunMigrationsOptions {
+  db: DatabaseSync;
+  dbPath?: string;
+  dataDir?: string;
+  backup?: boolean;
+}
+
 export function runMigrations({
   db,
   dbPath,
   dataDir,
   backup = true,
-}) {
+}: RunMigrationsOptions): MigrationResult {
   if (!db) {
     throw new Error('runMigrations requires db');
   }
@@ -129,17 +153,17 @@ export function runMigrations({
     };
   }
 
-  let backupPath = null;
+  let backupPath: string | null = null;
 
   if (backup) {
     backupPath = backupDatabase({
       dbPath,
       dataDir,
-      reason: `before-migration-v${pendingMigrations[0].version}-to-v${pendingMigrations.at(-1).version}`,
+      reason: `before-migration-v${pendingMigrations[0]!.version}-to-v${pendingMigrations.at(-1)!.version}`,
     });
   }
 
-  const applied = [];
+  const applied: AppliedMigration[] = [];
 
   for (const migration of pendingMigrations) {
     applySingleMigration(db, migration);
@@ -155,7 +179,7 @@ export function runMigrations({
   };
 }
 
-function ensureMigrationsTable(db) {
+function ensureMigrationsTable(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
       version INTEGER PRIMARY KEY,
@@ -165,19 +189,19 @@ function ensureMigrationsTable(db) {
   `);
 }
 
-function isMigrationApplied(db, version) {
+function isMigrationApplied(db: DatabaseSync, version: number): boolean {
   const row = db
     .prepare(`
       SELECT version
       FROM ${MIGRATIONS_TABLE}
       WHERE version = ?
     `)
-    .get(version);
+    .get(version) as { version: number } | undefined;
 
   return Boolean(row);
 }
 
-function applySingleMigration(db, migration) {
+function applySingleMigration(db: DatabaseSync, migration: Migration): void {
   console.log(`[migration] applying ${migration.version}: ${migration.name}`);
 
   db.exec('BEGIN IMMEDIATE');
@@ -207,7 +231,7 @@ function applySingleMigration(db, migration) {
   }
 }
 
-function addColumnIfNotExists(db, tableName, columnName, columnDefinition) {
+function addColumnIfNotExists(db: DatabaseSync, tableName: string, columnName: string, columnDefinition: string): boolean {
   if (columnExists(db, tableName, columnName)) {
     return false;
   }
@@ -223,10 +247,10 @@ function addColumnIfNotExists(db, tableName, columnName, columnDefinition) {
   return true;
 }
 
-function columnExists(db, tableName, columnName) {
+function columnExists(db: DatabaseSync, tableName: string, columnName: string): boolean {
   assertSafeIdentifier(tableName);
 
-  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
 
   return columns.some((column) => column.name === columnName);
 }
@@ -240,16 +264,16 @@ function columnExists(db, tableName, columnName) {
  * - last_seen_at 取最大值
  * - 删除其他重复项
  *
- * 这样不会完全丢失重复记录的“出现次数”和最近出现时间。
+ * 这样不会完全丢失重复记录的"出现次数"和最近出现时间。
  */
-function removeDuplicateUrls(db) {
+function removeDuplicateUrls(db: DatabaseSync): void {
   const duplicates = db.prepare(`
     SELECT url
     FROM items
     WHERE url IS NOT NULL AND url != ''
     GROUP BY url
     HAVING COUNT(*) > 1
-  `).all();
+  `).all() as Array<{ url: string }>;
 
   for (const row of duplicates) {
     const url = row.url;
@@ -259,13 +283,13 @@ function removeDuplicateUrls(db) {
       FROM items
       WHERE url = ?
       ORDER BY id ASC
-    `).all(url);
+    `).all(url) as Array<{ id: number; seen_count: number | null; last_seen_at: string | null }>;
 
     if (records.length <= 1) {
       continue;
     }
 
-    const keeper = records[0];
+    const keeper = records[0]!;
     const rest = records.slice(1);
 
     const totalSeenCount = records.reduce((sum, item) => {
@@ -302,11 +326,17 @@ function removeDuplicateUrls(db) {
   }
 }
 
+interface BackupDatabaseOptions {
+  dbPath?: string | undefined;
+  dataDir?: string | undefined;
+  reason?: string;
+}
+
 function backupDatabase({
   dbPath,
   dataDir,
   reason = 'manual',
-}) {
+}: BackupDatabaseOptions): string | null {
   if (!dbPath) {
     throw new Error('backupDatabase requires dbPath');
   }
@@ -335,20 +365,20 @@ function backupDatabase({
   return backupMainPath;
 }
 
-function copyIfExists(from, to) {
+function copyIfExists(from: string, to: string): void {
   if (fs.existsSync(from)) {
     fs.copyFileSync(from, to);
   }
 }
 
-function sanitizeFilePart(value) {
+function sanitizeFilePart(value: string): string {
   return String(value)
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/-+/g, '-')
     .slice(0, 80);
 }
 
-function assertSafeIdentifier(identifier) {
+function assertSafeIdentifier(identifier: string): void {
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(identifier)) {
     throw new Error(`Unsafe SQL identifier: ${identifier}`);
   }

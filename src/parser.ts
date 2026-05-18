@@ -13,7 +13,16 @@ const IGNORED_GITHUB_OWNERS = new Set([
   'about',
 ]);
 
-export function parseClipboardText(text) {
+export interface ParsedItem {
+  type: 'github-repo' | 'url';
+  title: string;
+  url: string;
+  host: string;
+  owner: string | null;
+  repo: string | null;
+}
+
+export function parseClipboardText(text: unknown): ParsedItem | null {
   const raw = String(text || '').trim();
 
   if (!raw) return null;
@@ -27,17 +36,17 @@ export function parseClipboardText(text) {
   return parseUrl(url);
 }
 
-function extractFirstUrl(text) {
+function extractFirstUrl(text: string): string | null {
   const match = text.match(/https?:\/\/[^\s"'<>]+/i);
   return match ? match[0] : null;
 }
 
-function parseGitHubSshUrl(text) {
-  const match = text.match(/^git@github\.com:([^/\s]+)\/([^/\s]+?)(?:\.git)?$/i);
+function parseGitHubSshUrl(text: string): ParsedItem | null {
+  const match = text.match(/^git@github\.com:([^\/\s]+)\/([^\/\s]+?)(?:\.git)?$/i);
   if (!match) return null;
 
-  const owner = match[1];
-  const repo = cleanupRepoName(match[2]);
+  const owner = match[1]!;
+  const repo = cleanupRepoName(match[2]!);
 
   return {
     type: 'github-repo',
@@ -49,8 +58,8 @@ function parseGitHubSshUrl(text) {
   };
 }
 
-function parseUrl(input) {
-  let url;
+function parseUrl(input: string): ParsedItem | null {
+  let url: URL;
 
   try {
     url = new URL(input);
@@ -79,17 +88,17 @@ function parseUrl(input) {
   };
 }
 
-function isGitHubHost(hostname) {
+function isGitHubHost(hostname: string): boolean {
   return hostname === 'github.com' || hostname === 'www.github.com';
 }
 
-function parseGitHubRepoUrl(url) {
+function parseGitHubRepoUrl(url: URL): ParsedItem | null {
   const parts = url.pathname.split('/').filter(Boolean);
 
   if (parts.length < 2) return null;
 
-  const owner = parts[0];
-  const repo = cleanupRepoName(parts[1]);
+  const owner = parts[0]!;
+  const repo = cleanupRepoName(parts[1]!);
 
   if (!owner || !repo) return null;
   if (IGNORED_GITHUB_OWNERS.has(owner)) return null;
@@ -104,11 +113,11 @@ function parseGitHubRepoUrl(url) {
   };
 }
 
-function cleanupRepoName(repo) {
+function cleanupRepoName(repo: string): string {
   return repo.replace(/\.git$/i, '');
 }
 
-function guessTitleFromUrl(url) {
+function guessTitleFromUrl(url: URL): string {
   const parts = url.pathname.split('/').filter(Boolean);
   const last = parts.at(-1);
 

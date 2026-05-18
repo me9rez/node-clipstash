@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import type { Context } from 'hono';
 
 import {
   initDb,
@@ -82,7 +83,7 @@ app.patch('/api/items/:id', async (c) => {
     return c.json({ error: 'Item not found' }, 404);
   }
 
-  const patch = {};
+  const patch: Record<string, string> = {};
 
   if (typeof body.title === 'string') {
     patch.title = body.title.trim();
@@ -135,7 +136,7 @@ serve(
   }
 );
 
-function clampInt(value, min, max, fallback) {
+function clampInt(value: string | undefined, min: number, max: number, fallback: number): number {
   const number = Number(value);
 
   if (!Number.isInteger(number)) {
@@ -145,7 +146,7 @@ function clampInt(value, min, max, fallback) {
   return Math.min(max, Math.max(min, number));
 }
 
-async function safeJson(c) {
+async function safeJson(c: Context): Promise<Record<string, unknown>> {
   try {
     return await c.req.json();
   } catch {

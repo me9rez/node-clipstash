@@ -171,10 +171,11 @@ a:hover {
 /* ── Toolbar ── */
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr 140px 130px auto auto auto;
+  grid-template-columns: 1fr 140px 130px auto auto;
   gap: 8px;
   margin-bottom: 12px;
   flex-shrink: 0;
+  align-items: center;
 }
 
 .search,
@@ -233,6 +234,21 @@ a:hover {
   cursor: not-allowed;
 }
 
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
 /* ── View Toggle ── */
 .view-toggle {
   display: flex;
@@ -242,9 +258,12 @@ a:hover {
 }
 
 .view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 0;
-  padding: 9px 14px;
+  padding: 7px 10px;
   background: var(--color-surface);
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
@@ -253,8 +272,8 @@ a:hover {
   transition: background 0.2s, color 0.2s;
 }
 
-.view-toggle button:first-child {
-  border-right: 1px solid var(--color-border);
+.view-toggle button + button {
+  border-left: 1px solid var(--color-border);
 }
 
 .view-toggle button:hover {
@@ -264,30 +283,6 @@ a:hover {
 .view-toggle button.active {
   background: var(--color-accent);
   color: #fff;
-}
-
-.compact-toggle {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 9px 14px;
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-
-.compact-toggle:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-}
-
-.compact-toggle.active {
-  background: var(--color-accent);
-  color: #fff;
-  border-color: var(--color-accent);
 }
 
 /* ── List Wrapper (scrollable) ── */
@@ -303,6 +298,26 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* ── Grid Layout ── */
+.list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 16px;
+}
+
+.list-grid .item-url {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-grid .item-note {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── Item Card ── */
@@ -651,6 +666,10 @@ button:disabled {
 }
 
 @media (max-width: 560px) {
+  .list-grid {
+    grid-template-columns: 1fr;
+  }
+
   .page {
     width: min(100% - 20px, 960px);
     padding: 16px 0 0;
@@ -711,6 +730,10 @@ button:disabled {
 
 .layout-compact .list {
   gap: 6px;
+}
+
+.layout-compact .list-grid {
+  gap: 12px;
 }
 
 .layout-compact .item-card {

@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import {
+  RefreshCw,
+  List,
+  CalendarDays,
+  LayoutGrid,
+  AlignVerticalJustifyStart,
+} from '@lucide/vue';
+import {
   fetchItems,
   fetchStats,
   updateItem,
@@ -20,7 +27,7 @@ const q = ref('');
 const type = ref('all');
 const status = ref('all');
 
-const limit = ref(50);
+const limit = ref(100);
 const offset = ref(0);
 const total = ref(0);
 
@@ -93,6 +100,10 @@ function formatGroupDate(dateStr: string | null) {
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
+watch(viewMode, (v) => {
+  localStorage.setItem('clipstash_view', v);
+});
+
 watch([q, type, status], () => {
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
@@ -106,6 +117,10 @@ onMounted(async () => {
   if (saved === 'compact') {
     compactMode.value = true;
     document.documentElement.classList.add('layout-compact');
+  }
+  const savedView = localStorage.getItem('clipstash_view');
+  if (savedView === 'grouped' || savedView === 'grid') {
+    viewMode.value = savedView;
   }
   await Promise.all([loadStats(), loadItems()]);
 });
@@ -248,33 +263,38 @@ function splitTags(tags: string | null) {
         <option value="read">已读</option>
         <option value="archived">已归档</option>
       </select>
-      <button @click="loadItems" :disabled="loading">
-        {{ loading ? '刷新中...' : '刷新' }}
+      <button class="icon-btn" @click="loadItems" :disabled="loading" title="刷新">
+        <RefreshCw :size="16" />
       </button>
+      <div class="toolbar-right">
         <div class="view-toggle">
-          <button :class="{ active: viewMode === 'flat' }" @click="viewMode = 'flat'">
-            平铺
+          <button :class="{ active: viewMode === 'flat' }" @click="viewMode = 'flat'" title="平铺">
+            <List :size="16" />
           </button>
-          <button :class="{ active: viewMode === 'grouped' }" @click="viewMode = 'grouped'">
-            按天
+          <button :class="{ active: viewMode === 'grouped' }" @click="viewMode = 'grouped'" title="按天">
+            <CalendarDays :size="16" />
+          </button>
+          <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="网格">
+            <LayoutGrid :size="16" />
           </button>
         </div>
-
-        <button
-          class="compact-toggle"
-          :class="{ active: compactMode }"
-          @click="toggleCompact"
-          title="紧凑模式"
-        >
-          紧凑
-        </button>
+        <div class="view-toggle">
+          <button
+            :class="{ active: compactMode }"
+            @click="toggleCompact"
+            title="紧凑模式"
+          >
+            <AlignVerticalJustifyStart :size="16" />
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="list-wrapper">
       <p v-if="error" class="error">{{ error }}</p>
 
-      <section class="list">
-        <template v-if="viewMode === 'flat'">
+      <section class="list" :class="{ 'list-grid': viewMode === 'grid' }">
+        <template v-if="viewMode === 'flat' || viewMode === 'grid'">
           <article
             v-for="item in items"
             :key="item.id"
@@ -323,7 +343,6 @@ function splitTags(tags: string | null) {
             </div>
 
             <div class="item-actions">
-              <button class="btn-primary" @click="openUrl(item.url)">打开</button>
               <button v-if="item.status !== 'read'" class="btn-ghost" @click="setStatus(item, 'read')">
                 已读
               </button>
@@ -389,7 +408,6 @@ function splitTags(tags: string | null) {
               </div>
 
               <div class="item-actions">
-                <button class="btn-primary" @click="openUrl(item.url)">打开</button>
                 <button v-if="item.status !== 'read'" class="btn-ghost" @click="setStatus(item, 'read')">
                   已读
                 </button>

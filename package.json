@@ -1,0 +1,48 @@
+{
+  "name": "node-clipstash",
+  "version": "0.0.1",
+  "description": "Save useful links from your clipboard into your personal knowledge vault.",
+  "description-zh": "从剪贴板自动收藏值得回看的链接",
+  "type": "module",
+  "bin": {
+    "clipstash": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "web/dist/"
+  ],
+  "keywords": [],
+  "author": "me9rez",
+  "license": "MIT",
+  "dependencies": {
+    "@hono/node-server": "^2.0.2",
+    "clipboardy": "^5.3.1",
+    "hono": "^4.12.19",
+    "node-notifier": "^10.0.1",
+    "open": "^11.0.0",
+    "type-flag": "^4.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/node-notifier": "^8.0.5",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "esbuild": "^0.28.0",
+    "tsdown": "^0.22.0",
+    "tsx": "^4.22.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.13",
+    "vitest": "^4.1.6",
+    "vue": "^3.5.34"
+  },
+  "scripts": {
+    "start": "pnpm run build:web && tsx src/main.ts",
+    "dev:web": "vite --host 127.0.0.1 --port 5173 --config web/vite.config.js",
+    "build:web": "vite build --config web/vite.config.js",
+    "build": "pnpm run build:web && tsdown",
+    "start:server": "tsx src/cli.ts server",
+    "list": "tsx src/cli.ts list",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}

@@ -1,70 +1,83 @@
 # Clipstash
 
-![Clipstash Logo](./icon/logo.png)
-
-从剪贴板自动收藏值得回看的链接。支持服务端/客户端分离部署，Token 鉴权，WebUI 管理。
-
----
-
-## 功能特点
-
-- **剪贴板监听**：自动捕获 GitHub 仓库和普通 URL 链接
-- **Server/Client 分离**：服务端集中存储，客户端监听各自剪贴板并推送
-- **Token 鉴权**：Bearer Token 认证，WebUI 管理用户和令牌
-- **本地数据库**：服务端使用 SQLite 存储收藏内容和状态
-- **状态管理**：未读、已读、归档，帮助整理收藏
-- **去重**：自动识别重复链接，合并 `seen_count`
-- **Web UI**：登录 → 查看、搜索、标记、编辑备注和标签
-- **迁移机制**：数据库结构升级安全，历史数据不丢失
+<div align="center">
+  <img src="./image/logo.png" alt="Clipstash Logo" width="180" />
+  
+  <p><strong>从剪贴板自动收藏值得回看的链接</strong></p>
+  
+  <p>服务端/客户端分离部署 · Token 鉴权 · WebUI 管理 · SQLite 存储</p>
+</div>
 
 ---
 
-## 安装
+## 📸 界面预览
+
+### 登录页面
+![登录页面](./image/login.png)
+
+### 收藏管理
+![收藏列表](./image/list.png)
+
+---
+
+## ✨ 功能特点
+
+- 📋 **剪贴板监听** — 自动捕获 GitHub 仓库和普通 URL 链接
+- 🖥️ **Server/Client 分离** — 服务端集中存储，客户端监听各自剪贴板并推送
+- 🔐 **Token 鉴权** — Bearer Token 认证，WebUI 管理用户和令牌
+- 💾 **本地数据库** — 服务端使用 SQLite 存储收藏内容和状态
+- ️ **状态管理** — 未读、已读、归档，帮助整理收藏
+- 🔄 **智能去重** — 自动识别重复链接，合并 `seen_count`
+- 🌐 **Web UI** — 登录 → 查看、搜索、标记、编辑备注和标签
+- ️ **迁移机制** — 数据库结构升级安全，历史数据不丢失
+
+---
+
+## 🚀 快速开始
+
+### 方式一：全局安装（推荐）
+
+本项目使用 [git-publish](https://github.com/privatenumber/git-publish) 发布，可直接通过 GitHub 分支安装：
 
 ```bash
-git clone https://github.com/<your-username>/clipstash.git
-cd clipstash
+pnpm i 'me9rez/node-clipstash#npm/master' -g
+```
+
+安装后即可直接使用 `clipstash` 命令。
+
+### 方式二：从源码安装
+
+```bash
+git clone https://github.com/me9rez/node-clipstash.git
+cd node-clipstash
 pnpm install
 pnpm run build
+pnpm run start:server
 ```
+
+首次启动会自动创建管理员账户，访问 `http://localhost:3879` 即可使用。
 
 ---
 
-## CLI 命令
+## 📦 使用指南
 
-```
-clipstash server   [--port <port>]                     启动 API 服务端 + WebUI
-clipstash client   [--server <url>] [--token <tok>]    启动剪贴板监听客户端
-clipstash list     [--server <url>] [--token <tok>]    列出收藏条目
-clipstash admin    <subcommand>                        管理用户和令牌
-```
-
-### 通用选项
-
-| 选项 | 环境变量 | 默认值 | 说明 |
-|---|---|---|---|
-| `--port, -p` | `CLIPSTASH_PORT` | `3879` | 服务端端口 |
-| `--server, -s` | `CLIPSTASH_SERVER_URL` | `http://127.0.0.1:3879` | 服务端地址 |
-| `--token, -t` | `CLIPSTASH_TOKEN` | - | 认证令牌 |
-| `--no-notify` | - | `false` | 禁用桌面通知（仅 client 模式） |
-| `--help, -h` | - | - | 显示帮助 |
-
----
-
-## 使用方式
-
-### 1. 启动服务端
+全局安装后可直接使用 `clipstash` 命令：
 
 ```bash
-# 开发模式
-pnpm run start:server
+clipstash server   [--port <port>]                     # 启动 API 服务端 + WebUI
+clipstash client   [--server <url>] [--token <tok>]    # 启动剪贴板监听客户端
+clipstash list     [--server <url>] [--token <tok>]    # 列出收藏条目
+clipstash admin    <subcommand>                        # 管理用户和令牌
+```
 
-# 构建后运行
-pnpm run build
-node dist/cli.js server
+### ① 启动服务端
+
+```bash
+# 直接运行
+clipstash server
 
 # 自定义端口
-node dist/cli.js server --port 3000
+clipstash server --port 3000
 ```
 
 首次启动会打印管理员凭据：
@@ -80,7 +93,7 @@ node dist/cli.js server --port 3000
 
 访问 `http://localhost:3879` 打开 WebUI，用管理员凭据登录。
 
-### 2. 启动客户端
+### ② 启动客户端
 
 客户端监听本机剪贴板，将解析到的链接推送到服务端：
 
@@ -88,41 +101,41 @@ node dist/cli.js server --port 3000
 # 使用环境变量
 $env:CLIPSTASH_SERVER_URL = "http://192.168.1.100:3879"
 $env:CLIPSTASH_TOKEN = "your-token-here"
-node dist/cli.js client
+clipstash client
 
 # 使用命令行参数
-node dist/cli.js client --server http://192.168.1.100:3879 --token your-token-here
+clipstash client --server http://192.168.1.100:3879 --token your-token-here
 
 # 禁用桌面通知
-node dist/cli.js client --no-notify
+clipstash client --no-notify
 ```
 
-### 3. 查看收藏
+###  查看收藏
 
 ```bash
 # 本地数据库
-pnpm run list
+clipstash list
 
 # 远程服务端
-node dist/cli.js list --server http://192.168.1.100:3879 --token your-token-here
+clipstash list --server http://192.168.1.100:3879 --token your-token-here
 ```
 
-### 4. 管理用户和令牌
+### ④ 管理用户和令牌
 
 ```bash
 # 列出所有用户和令牌（掩码显示）
-node dist/cli.js admin list
+clipstash admin list
 
 # 重置用户密码
-node dist/cli.js admin reset admin
+clipstash admin reset admin
 
 # 为用户生成新令牌
-node dist/cli.js admin token admin my-client
+clipstash admin token admin my-client
 ```
 
 ---
 
-## WebUI 管理
+## 🌐 WebUI 管理
 
 登录后可以：
 
@@ -135,29 +148,32 @@ node dist/cli.js admin token admin my-client
 
 ---
 
-## 开发
+## 🛠️ 开发
 
+### 环境要求
+- Node.js 22+
+- pnpm 10+
+
+### 开发命令
+
+| 命令 | 说明 |
+|------|------|
+| `pnpm install` | 安装依赖 |
+| `pnpm run build` | 前端 + tsdown 打包 |
+| `pnpm run type-check` | TypeScript 类型检查 |
+| `pnpm run test` | 运行测试 |
+| `pnpm run start:server` | API 服务 (端口 3879) |
+| `pnpm run dev:web` | Vite 前端 (端口 5173) |
+
+开发模式需同时运行两个终端：
 ```bash
-# 安装依赖
-pnpm install
-
-# 构建
-pnpm run build         # 前端 + tsdown 打包
-
-# 类型检查
-pnpm run type-check
-
-# 运行测试
-pnpm run test
-
-# 开发模式（需同时运行两个终端）
 pnpm run start:server  # API 服务 (端口 3879)
 pnpm run dev:web       # Vite 前端 (端口 5173，/api 代理到 3879)
 ```
 
 ---
 
-## 项目结构
+##  项目结构
 
 ```
 ├── src/
@@ -171,10 +187,10 @@ pnpm run dev:web       # Vite 前端 (端口 5173，/api 代理到 3879)
 │   ├── auth.ts          # 鉴权（密码哈希、Token、中间件）
 │   ├── notify.ts        # 桌面通知
 │   └── types.ts         # 共享类型
-├── web/
+── web/
 │   └── src/             # Vue 3 前端
 │       ├── App.vue      # 主页面
-│       ├── Login.vue     # 登录页
+│       ├── Login.vue    # 登录页
 │       ├── AdminPanel.vue # 管理面板
 │       ├── api.ts       # API 客户端
 │       └── auth.ts      # 前端 Token 管理
@@ -188,10 +204,10 @@ pnpm run dev:web       # Vite 前端 (端口 5173，/api 代理到 3879)
 
 ---
 
-## API 端点
+## 🔌 API 端点
 
 | 方法 | 路径 | 鉴权 | 说明 |
-|---|---|---|---|
+|------|------|------|------|
 | `GET` | `/api/health` | 否 | 健康检查 |
 | `POST` | `/api/auth/login` | 否 | 登录获取 Token |
 | `GET` | `/api/auth/me` | 是 | 当前用户信息 |
@@ -211,10 +227,10 @@ pnpm run dev:web       # Vite 前端 (端口 5173，/api 代理到 3879)
 
 ---
 
-## 环境变量
+## ⚙️ 环境变量
 
 | 变量 | 说明 | 默认值 |
-|---|---|---|
+|------|------|--------|
 | `CLIPSTASH_PORT` | 服务端端口 | `3879` |
 | `CLIPSTASH_SERVER_URL` | 客户端连接地址 | `http://127.0.0.1:3879` |
 | `CLIPSTASH_TOKEN` | 客户端认证令牌 | - |

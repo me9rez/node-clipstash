@@ -612,9 +612,18 @@ function createApp() {
 		if (!username || !password) return c.json({ error: "Username and password are required" }, 400);
 		const user = findUserByUsername(username);
 		if (!user || !verifyPassword(password, user.password_hash)) return c.json({ error: "Invalid username or password" }, 401);
+		const existingLoginToken = listApiTokens(user.id).find((t) => t.name.startsWith("Web login"));
+		if (existingLoginToken) return c.json({
+			token: existingLoginToken.token,
+			user: {
+				id: user.id,
+				username: user.username,
+				is_admin: Boolean(user.is_admin),
+				created_at: user.created_at
+			}
+		});
 		const token = generateToken();
-		const name = `Web login ${(/* @__PURE__ */ new Date()).toISOString()}`;
-		createApiToken(user.id, token, name);
+		createApiToken(user.id, token, "Web login");
 		return c.json({
 			token,
 			user: {
@@ -733,10 +742,22 @@ function createApp() {
 			created_at: user.created_at
 		}, 201);
 	});
+	app.patch("/api/users/:id", authMiddleware, requireAdmin, async (c) => {
+		const id = Number(c.req.param("id"));
+		const body = await safeJson(c);
+		const password = typeof body.password === "string" ? body.password : "";
+		if (!password || password.length < 6) return c.json({ error: "Password must be at least 6 characters" }, 400);
+		if (!findUserById(id)) return c.json({ error: "User not found" }, 404);
+		updateUserPassword(id, hashPassword(password));
+		return c.json({ ok: true });
+	});
 	app.delete("/api/users/:id", authMiddleware, requireAdmin, (c) => {
 		const id = Number(c.req.param("id"));
 		if (id === c.get("userId")) return c.json({ error: "Cannot delete yourself" }, 400);
-		if (!deleteUser(id)) return c.json({ error: "User not found" }, 404);
+		const targetUser = findUserById(id);
+		if (!targetUser) return c.json({ error: "User not found" }, 404);
+		if (targetUser.username === "admin") return c.json({ error: "Cannot delete admin user" }, 403);
+		deleteUser(id);
 		return c.json({ ok: true });
 	});
 	app.get("/api/tokens", authMiddleware, (c) => {
@@ -763,7 +784,9 @@ function createApp() {
 	app.delete("/api/tokens/:id", authMiddleware, (c) => {
 		const userId = c.get("userId");
 		const id = Number(c.req.param("id"));
-		if (!listApiTokens(userId).find((t) => t.id === id)) return c.json({ error: "Token not found" }, 404);
+		const targetToken = listApiTokens(userId).find((t) => t.id === id);
+		if (!targetToken) return c.json({ error: "Token not found" }, 404);
+		if (targetToken.name.startsWith("Web login")) return c.json({ error: "Cannot delete Web login token" }, 403);
 		deleteApiToken(id);
 		return c.json({ ok: true });
 	});

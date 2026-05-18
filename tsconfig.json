@@ -14,7 +14,7 @@
       "node"
     ],
     "lib": [
-      "ESNext"
+      "ESNext","DOM"
     ],
     // For nodejs:
     // "lib": ["esnext"],

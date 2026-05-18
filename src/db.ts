@@ -26,6 +26,22 @@ export interface DbItem {
   seen_count: number;
 }
 
+export interface DbUser {
+  id: number;
+  username: string;
+  password_hash: string;
+  is_admin: number;
+  created_at: string;
+}
+
+export interface DbApiToken {
+  id: number;
+  user_id: number;
+  token: string;
+  name: string;
+  created_at: string;
+}
+
 export interface SaveItemResult {
   created: boolean;
   item: DbItem;
@@ -306,4 +322,129 @@ export function getStats(): StatsResult {
     byType,
     byStatus,
   };
+}
+
+export function hasUsers(): boolean {
+  const database = getDb();
+
+  const row = database.prepare('SELECT COUNT(*) AS count FROM users').get() as { count: number };
+
+  return row.count > 0;
+}
+
+export function createUser(username: string, passwordHash: string, isAdmin: boolean = false): DbUser {
+  const database = getDb();
+  const now = new Date().toISOString();
+
+  const result = database.prepare(`
+    INSERT INTO users (username, password_hash, is_admin, created_at)
+    VALUES (?, ?, ?, ?)
+  `).run(username, passwordHash, isAdmin ? 1 : 0, now);
+
+  return {
+    id: Number(result.lastInsertRowid),
+    username,
+    password_hash: passwordHash,
+    is_admin: isAdmin ? 1 : 0,
+    created_at: now,
+  };
+}
+
+export function findUserByToken(token: string): (DbUser & { token_id: number }) | undefined {
+  const database = getDb();
+
+  const row = database.prepare(`
+    SELECT u.*, t.id AS token_id
+    FROM api_tokens t
+    JOIN users u ON u.id = t.user_id
+    WHERE t.token = ?
+  `).get(token) as (DbUser & { token_id: number }) | undefined;
+
+  return row;
+}
+
+export function findUserByUsername(username: string): DbUser | undefined {
+  const database = getDb();
+
+  return database.prepare('SELECT * FROM users WHERE username = ?').get(username) as DbUser | undefined;
+}
+
+export function findUserById(id: number): DbUser | undefined {
+  const database = getDb();
+
+  return database.prepare('SELECT * FROM users WHERE id = ?').get(id) as DbUser | undefined;
+}
+
+export function createApiToken(userId: number, token: string, name: string): DbApiToken {
+  const database = getDb();
+  const now = new Date().toISOString();
+
+  const result = database.prepare(`
+    INSERT INTO api_tokens (user_id, token, name, created_at)
+    VALUES (?, ?, ?, ?)
+  `).run(userId, token, name, now);
+
+  return {
+    id: Number(result.lastInsertRowid),
+    user_id: userId,
+    token,
+    name,
+    created_at: now,
+  };
+}
+
+export function listUsers(): DbUser[] {
+  const database = getDb();
+
+  return database.prepare('SELECT * FROM users ORDER BY id ASC').all() as unknown as DbUser[];
+}
+
+export function deleteUser(id: number): boolean {
+  const database = getDb();
+
+  const user = findUserById(id);
+
+  if (!user) {
+    return false;
+  }
+
+  database.prepare('DELETE FROM users WHERE id = ?').run(id);
+
+  return true;
+}
+
+export function updateUserPassword(id: number, passwordHash: string): boolean {
+  const database = getDb();
+
+  const user = findUserById(id);
+
+  if (!user) {
+    return false;
+  }
+
+  database.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+
+  return true;
+}
+
+export function listApiTokens(userId: number): DbApiToken[] {
+  const database = getDb();
+
+  return database.prepare(
+    'SELECT * FROM api_tokens WHERE user_id = ? ORDER BY id DESC'
+  ).all(userId) as unknown as DbApiToken[];
+}
+
+export function deleteApiToken(id: number): boolean {
+  const database = getDb();
+
+  const token = database.prepare('SELECT * FROM api_tokens WHERE id = ?').get(id) as DbApiToken | undefined;
+
+  if (!token) {
+    return false;
+  }
+
+  database.prepare('DELETE FROM api_tokens WHERE id = ?').run(id);
+
+  return true;
 }

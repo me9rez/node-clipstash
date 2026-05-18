@@ -18,3 +18,12 @@ export function notifyDuplicate(item: DbItem): void {
     sound: false,
   });
 }
+
+export function notifyError(title: string, message: string): void {
+  notifier.notify({
+    title,
+    message,
+    wait: false,
+    sound: false,
+  });
+}

@@ -1,17 +1,16 @@
 import clipboard from 'clipboardy';
 import { parseClipboardText } from './parser.js';
-import { saveItem } from './db.js';
-import { notifySaved } from './notify.js';
+import type { ParsedItem } from './parser.js';
 
 export interface WatcherOptions {
   interval?: number;
   notifyDuplicates?: boolean;
 }
 
-export function startClipboardWatcher({
-  interval = 1000,
-  notifyDuplicates = false,
-}: WatcherOptions = {}): () => void {
+export function startClipboardWatcher(
+  onItem: (parsed: ParsedItem) => void | Promise<void>,
+  { interval = 1000 }: WatcherOptions = {}
+): () => void {
   let lastText = '';
   let timer: ReturnType<typeof setInterval> | null = null;
   let busy = false;
@@ -30,19 +29,7 @@ export function startClipboardWatcher({
       const parsed = parseClipboardText(text);
       if (!parsed) return;
 
-      const result = saveItem(parsed);
-
-      if (result.created) {
-        console.log(`[saved] ${parsed.type} ${parsed.url}`);
-        notifySaved(result.item);
-      } else {
-        console.log(`[exists] ${parsed.type} ${parsed.url}`);
-
-        if (notifyDuplicates) {
-          // 第一版默认不通知重复，避免打扰
-          notifySaved(result.item);
-        }
-      }
+      await onItem(parsed);
     } catch (error) {
       console.error('[watcher:error]', (error as Error).message);
     } finally {

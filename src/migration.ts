@@ -111,6 +111,32 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 2,
+    name: 'create_users_and_tokens_tables',
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          is_admin INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS api_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
+      `);
+    },
+  },
 ];
 
 export interface AppliedMigration {
@@ -383,24 +409,3 @@ function assertSafeIdentifier(identifier: string): void {
     throw new Error(`Unsafe SQL identifier: ${identifier}`);
   }
 }
-
-// {
-//   version: 2,
-//   name: 'add_github_readme_fields',
-//   up(db) {
-//     addColumnIfNotExists(db, 'items', 'github_description', 'TEXT');
-//     addColumnIfNotExists(db, 'items', 'github_stars', 'INTEGER');
-//     addColumnIfNotExists(db, 'items', 'github_language', 'TEXT');
-
-//     addColumnIfNotExists(db, 'items', 'readme_path', 'TEXT');
-//     addColumnIfNotExists(db, 'items', 'readme_sha', 'TEXT');
-//     addColumnIfNotExists(db, 'items', 'readme_etag', 'TEXT');
-//     addColumnIfNotExists(db, 'items', 'readme_updated_at', 'TEXT');
-//     addColumnIfNotExists(db, 'items', 'readme_checked_at', 'TEXT');
-
-//     db.exec(`
-//       CREATE INDEX IF NOT EXISTS idx_items_owner_repo ON items(owner, repo);
-//       CREATE INDEX IF NOT EXISTS idx_items_readme_checked_at ON items(readme_checked_at);
-//     `);
-//   },
-// }

@@ -132,6 +132,13 @@ export async function deleteUser(id: number): Promise<{ ok: true }> {
   });
 }
 
+export async function changeUserPassword(id: number, password: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ password }),
+  });
+}
+
 export async function fetchTokens(): Promise<TokenItem[]> {
   return request<TokenItem[]>('/tokens');
 }

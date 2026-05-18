@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   fetchUsers,
   createUser,
   deleteUser,
+  changeUserPassword,
   fetchTokens,
   createToken,
   deleteToken,
 } from './api.js';
 import type { UserListItem, TokenItem } from './api.js';
 
-const emit = defineEmits<{
-  close: [];
-}>();
+const router = useRouter();
 
 const users = ref<UserListItem[]>([]);
 const tokens = ref<TokenItem[]>([]);
@@ -23,6 +23,9 @@ const newToken = ref<string | null>(null);
 const error = ref('');
 
 const showNewTokenModal = ref(false);
+
+const changingUserId = ref<number | null>(null);
+const changingPassword = ref('');
 
 async function loadData() {
   try {
@@ -70,6 +73,34 @@ async function handleDeleteUser(id: number, username: string) {
   }
 }
 
+function startChangePassword(userId: number) {
+  changingUserId.value = userId;
+  changingPassword.value = '';
+}
+
+function cancelChangePassword() {
+  changingUserId.value = null;
+  changingPassword.value = '';
+}
+
+async function handleChangeUserPassword(userId: number, username: string) {
+  error.value = '';
+
+  if (!changingPassword.value || changingPassword.value.length < 6) {
+    error.value = '密码至少 6 个字符';
+    return;
+  }
+
+  try {
+    await changeUserPassword(userId, changingPassword.value);
+    changingUserId.value = null;
+    changingPassword.value = '';
+    alert(`用户 ${username} 密码已修改`);
+  } catch (err) {
+    error.value = (err as Error).message;
+  }
+}
+
 async function handleCreateToken() {
   error.value = '';
 
@@ -110,100 +141,121 @@ function closeNewToken() {
 </script>
 
 <template>
-  <div class="admin-overlay" @click.self="emit('close')">
-    <div class="admin-panel">
-      <div class="admin-header">
-        <h2>管理面板</h2>
-        <button class="admin-close" @click="emit('close')">&times;</button>
+  <div class="admin-panel">
+    <h2>管理面板</h2>
+
+    <p v-if="error" class="admin-error">{{ error }}</p>
+
+    <section class="admin-section">
+      <h3>用户管理</h3>
+
+      <div class="admin-create-row">
+        <input
+          v-model="newUsername"
+          placeholder="用户名"
+          class="admin-input"
+        />
+        <input
+          v-model="newPassword"
+          type="password"
+          placeholder="密码 (至少6位)"
+          class="admin-input"
+        />
+        <button class="btn-primary admin-btn-sm" @click="handleCreateUser">
+          创建用户
+        </button>
       </div>
 
-      <p v-if="error" class="admin-error">{{ error }}</p>
-
-      <section class="admin-section">
-        <h3>用户管理</h3>
-
-        <div class="admin-create-row">
-          <input
-            v-model="newUsername"
-            placeholder="用户名"
-            class="admin-input"
-          />
-          <input
-            v-model="newPassword"
-            type="password"
-            placeholder="密码 (至少6位)"
-            class="admin-input"
-          />
-          <button class="btn-primary admin-btn-sm" @click="handleCreateUser">
-            创建用户
-          </button>
-        </div>
-
-        <ul class="admin-list" v-if="users.length > 0">
-          <li v-for="user in users" :key="user.id" class="admin-list-item">
-            <span>
-              <strong>{{ user.username }}</strong>
-              <span v-if="user.is_admin" class="admin-badge">管理员</span>
-              <span class="admin-date">{{ user.created_at?.slice(0, 10) }}</span>
-            </span>
+      <ul class="admin-list" v-if="users.length > 0">
+        <li v-for="user in users" :key="user.id" class="admin-list-item">
+          <span>
+            <strong>{{ user.username }}</strong>
+            <span v-if="user.is_admin" class="admin-badge">管理员</span>
+            <span class="admin-date">{{ user.created_at?.slice(0, 10) }}</span>
+          </span>
+          <span class="user-actions">
+            <button
+              class="btn-ghost admin-btn-sm"
+              @click="startChangePassword(user.id)"
+            >
+              修改密码
+            </button>
             <button
               class="btn-danger-ghost admin-btn-sm"
               @click="handleDeleteUser(user.id, user.username)"
             >
               删除
             </button>
-          </li>
-        </ul>
-      </section>
+          </span>
+        </li>
+      </ul>
 
-      <section class="admin-section">
-        <h3>令牌管理</h3>
+      <div v-if="changingUserId !== null" class="password-change-row">
+        <input
+          v-model="changingPassword"
+          type="password"
+          placeholder="新密码 (至少6位)"
+          class="admin-input"
+        />
+        <button
+          class="btn-primary admin-btn-sm"
+          @click="handleChangeUserPassword(changingUserId, users.find(u => u.id === changingUserId)?.username || '')"
+        >
+          确认修改
+        </button>
+        <button class="btn-ghost admin-btn-sm" @click="cancelChangePassword">
+          取消
+        </button>
+      </div>
+    </section>
 
-        <div class="admin-create-row">
-          <input
-            v-model="tokenName"
-            placeholder="令牌名称 (可选)"
-            class="admin-input"
-          />
-          <button class="btn-primary admin-btn-sm" @click="handleCreateToken">
-            生成令牌
+    <section class="admin-section">
+      <h3>令牌管理</h3>
+
+      <div class="admin-create-row">
+        <input
+          v-model="tokenName"
+          placeholder="令牌名称 (可选)"
+          class="admin-input"
+        />
+        <button class="btn-primary admin-btn-sm" @click="handleCreateToken">
+          生成令牌
+        </button>
+      </div>
+
+      <ul class="admin-list" v-if="tokens.length > 0">
+        <li v-for="t in tokens" :key="t.id" class="admin-list-item">
+          <span class="token-info">
+            <strong>{{ t.name }}</strong>
+            <code class="token-preview">{{ t.token.slice(0, 12) }}...</code>
+            <span class="admin-date">{{ t.created_at?.slice(0, 10) }}</span>
+          </span>
+          <span class="token-actions">
+            <button class="btn-ghost admin-btn-sm" @click="copyToken(t.token)">
+              复制
+            </button>
+            <button
+              class="btn-danger-ghost admin-btn-sm"
+              @click="handleDeleteToken(t.id)"
+            >
+              删除
+            </button>
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <div v-if="showNewTokenModal" class="token-reveal">
+      <div class="token-reveal-card">
+        <p class="token-reveal-warn">请立即复制并保存此令牌，关闭后将无法再次查看：</p>
+        <code class="token-full">{{ newToken }}</code>
+        <div class="token-reveal-actions">
+          <button class="btn-primary admin-btn-sm" @click="copyToken(newToken!)">
+            复制到剪贴板
           </button>
-        </div>
-
-        <ul class="admin-list" v-if="tokens.length > 0">
-          <li v-for="t in tokens" :key="t.id" class="admin-list-item">
-            <span class="token-info">
-              <strong>{{ t.name }}</strong>
-              <code class="token-preview">{{ t.token.slice(0, 12) }}...</code>
-              <span class="admin-date">{{ t.created_at?.slice(0, 10) }}</span>
-            </span>
-            <span class="token-actions">
-              <button class="btn-ghost admin-btn-sm" @click="copyToken(t.token)">
-                复制
-              </button>
-              <button
-                class="btn-danger-ghost admin-btn-sm"
-                @click="handleDeleteToken(t.id)"
-              >
-                删除
-              </button>
-            </span>
-          </li>
-        </ul>
-      </section>
-
-      <div v-if="showNewTokenModal" class="token-reveal">
-        <div class="token-reveal-card">
-          <p class="token-reveal-warn">请立即复制并保存此令牌，关闭后将无法再次查看：</p>
-          <code class="token-full">{{ newToken }}</code>
-          <div class="token-reveal-actions">
-            <button class="btn-primary admin-btn-sm" @click="copyToken(newToken!)">
-              复制到剪贴板
-            </button>
-            <button class="btn-ghost admin-btn-sm" @click="closeNewToken">
-              已保存
-            </button>
-          </div>
+          <button class="btn-ghost admin-btn-sm" @click="closeNewToken">
+            已保存
+          </button>
         </div>
       </div>
     </div>
@@ -211,50 +263,19 @@ function closeNewToken() {
 </template>
 
 <style scoped>
-.admin-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 60px;
-  z-index: 100;
-}
-
 .admin-panel {
-  width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
   background: #FEFDFB;
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   padding: 32px;
 }
 
-.admin-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.admin-header h2 {
-  margin: 0;
+.admin-panel h2 {
+  margin: 0 0 20px;
   font-size: 22px;
-}
-
-.admin-close {
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: #8C7A6B;
-  line-height: 1;
-}
-
-.admin-close:hover {
-  color: #5C4F42;
 }
 
 .admin-error {
@@ -337,6 +358,20 @@ function closeNewToken() {
   margin-left: 8px;
   font-size: 12px;
   color: #A89A8C;
+}
+
+.user-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.password-change-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 0;
+  border-top: 1px dashed #E8E0D8;
 }
 
 .token-info {

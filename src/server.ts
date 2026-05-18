@@ -90,10 +90,26 @@ export function createApp() {
       return c.json({ error: 'Invalid username or password' }, 401);
     }
 
-    const token = generateToken();
-    const name = `Web login ${new Date().toISOString()}`;
+    // Reuse existing Web login token if available
+    // This avoids creating a new token on every page refresh
+    const existingTokens = listApiTokens(user.id);
+    const existingLoginToken = existingTokens.find(t => t.name.startsWith('Web login'));
 
-    createApiToken(user.id, token, name);
+    if (existingLoginToken) {
+      return c.json({
+        token: existingLoginToken.token,
+        user: {
+          id: user.id,
+          username: user.username,
+          is_admin: Boolean(user.is_admin),
+          created_at: user.created_at,
+        },
+      });
+    }
+
+    const token = generateToken();
+
+    createApiToken(user.id, token, 'Web login');
 
     return c.json({
       token,
@@ -302,6 +318,27 @@ export function createApp() {
     );
   });
 
+  app.patch('/api/users/:id', authMiddleware, requireAdmin, async (c) => {
+    const id = Number(c.req.param('id'));
+    const body = await safeJson(c);
+
+    const password = typeof body.password === 'string' ? body.password : '';
+
+    if (!password || password.length < 6) {
+      return c.json({ error: 'Password must be at least 6 characters' }, 400);
+    }
+
+    const user = findUserById(id);
+
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    updateUserPassword(id, hashPassword(password));
+
+    return c.json({ ok: true });
+  });
+
   app.delete('/api/users/:id', authMiddleware, requireAdmin, (c) => {
     const id = Number(c.req.param('id'));
     const loggedInUserId = c.get('userId') as number;
@@ -310,11 +347,17 @@ export function createApp() {
       return c.json({ error: 'Cannot delete yourself' }, 400);
     }
 
-    const deleted = deleteUserDb(id);
+    const targetUser = findUserById(id);
 
-    if (!deleted) {
+    if (!targetUser) {
       return c.json({ error: 'User not found' }, 404);
     }
+
+    if (targetUser.username === 'admin') {
+      return c.json({ error: 'Cannot delete admin user' }, 403);
+    }
+
+    deleteUserDb(id);
 
     return c.json({ ok: true });
   });
@@ -359,6 +402,10 @@ export function createApp() {
 
     if (!targetToken) {
       return c.json({ error: 'Token not found' }, 404);
+    }
+
+    if (targetToken.name.startsWith('Web login')) {
+      return c.json({ error: 'Cannot delete Web login token' }, 403);
     }
 
     deleteApiToken(id);

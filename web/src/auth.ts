@@ -5,6 +5,7 @@ export interface AuthUser {
   id: number;
   username: string;
   is_admin: boolean;
+  created_at?: string;
 }
 
 export function getToken(): string | null {

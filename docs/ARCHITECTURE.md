@@ -79,6 +79,7 @@ Clipstash 是一个剪贴板收藏工具，采用 **Server/Client 分离架构**
 clipstash server    → startServer()
 clipstash client    → startClient()
 clipstash list      → listItems() / listRemoteItems()
+clipstash admin     → listUsers() / reset / token
 ```
 
 解析工具：`type-flag`，支持 `--port` / `--server` / `--token` / `--no-notify` 及环境变量回退。

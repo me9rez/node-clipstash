@@ -20,7 +20,8 @@
     "list": "tsx src/cli.ts list",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "pnpm run build"
   },
   "keywords": [],
   "author": "me9rez",

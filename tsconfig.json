@@ -45,6 +45,7 @@
   },
   "include": [
     "src/**/*",
+    "test/**/*",
     "web/src/**/*",
     "web/vite.config.js"
   ],

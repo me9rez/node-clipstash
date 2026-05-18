@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { typeFlag } from 'type-flag';
 import { startServer } from './server.js';
 import { startClient, listRemoteItems } from './client.js';

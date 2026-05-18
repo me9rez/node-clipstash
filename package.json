@@ -36,13 +36,14 @@
   },
   "scripts": {
     "start": "pnpm run build:web && tsx src/main.ts",
-    "dev:web": "vite --host 127.0.0.1 --port 5173 --config web/vite.config.js",
-    "build:web": "vite build --config web/vite.config.js",
+    "dev:web": "vite --host 127.0.0.1 --port 5173 --config vite.config.ts",
+    "build:web": "vite build --config vite.config.ts",
     "build": "pnpm run build:web && tsdown",
     "start:server": "tsx src/cli.ts server",
     "list": "tsx src/cli.ts list",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "gh-publish": "pnpx git-publish"
   }
 }

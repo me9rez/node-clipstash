@@ -36,6 +36,7 @@ pnpm run build
 clipstash server   [--port <port>]                     启动 API 服务端 + WebUI
 clipstash client   [--server <url>] [--token <tok>]    启动剪贴板监听客户端
 clipstash list     [--server <url>] [--token <tok>]    列出收藏条目
+clipstash admin    <subcommand>                        管理用户和令牌
 ```
 
 ### 通用选项
@@ -104,6 +105,19 @@ pnpm run list
 
 # 远程服务端
 node dist/cli.js list --server http://192.168.1.100:3879 --token your-token-here
+```
+
+### 4. 管理用户和令牌
+
+```bash
+# 列出所有用户和令牌（掩码显示）
+node dist/cli.js admin list
+
+# 重置用户密码
+node dist/cli.js admin reset admin
+
+# 为用户生成新令牌
+node dist/cli.js admin token admin my-client
 ```
 
 ---

@@ -103,13 +103,13 @@ a:hover {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 48px 0 0;
+  padding: 24px 0 0;
 }
 
 /* ── Header ── */
 .page-header {
   flex-shrink: 0;
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .eyebrow {
@@ -123,17 +123,17 @@ a:hover {
 }
 
 .page-header h1 {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   font-family: var(--font-serif);
-  font-size: 38px;
+  font-size: 28px;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
 
 .subtitle {
-  margin: 0 0 20px;
-  font-size: 17px;
+  margin: 0 0 12px;
+  font-size: 15px;
   color: var(--color-text-secondary);
   line-height: 1.6;
 }
@@ -144,7 +144,7 @@ a:hover {
   align-items: center;
   gap: 8px;
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text-secondary);
 }
 
@@ -171,9 +171,9 @@ a:hover {
 /* ── Toolbar ── */
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr 140px 130px auto auto;
-  gap: 10px;
-  margin-bottom: 24px;
+  grid-template-columns: 1fr 140px 130px auto auto auto;
+  gap: 8px;
+  margin-bottom: 12px;
   flex-shrink: 0;
 }
 
@@ -266,26 +266,50 @@ a:hover {
   color: #fff;
 }
 
+.compact-toggle {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 9px 14px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.compact-toggle:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.compact-toggle.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
 /* ── List Wrapper (scrollable) ── */
 .list-wrapper {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  padding-bottom: 20px;
+  padding-bottom: 12px;
 }
 
 /* ── List ── */
 .list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 /* ── Item Card ── */
 .item-card {
   background: var(--color-surface);
   border-radius: var(--radius);
-  padding: 22px 24px;
+  padding: 14px 18px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--color-border-light);
   transition: box-shadow 0.25s, transform 0.25s;
@@ -305,7 +329,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 0 10px;
+  padding: 12px 0 6px;
   font-family: var(--font-sans);
 }
 
@@ -333,9 +357,9 @@ a:hover {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-tertiary);
 }
 
@@ -391,9 +415,9 @@ a:hover {
 
 /* ── Item Title ── */
 .item-title {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   font-family: var(--font-serif);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.4;
 }
@@ -409,9 +433,9 @@ a:hover {
 
 /* ── Item URL ── */
 .item-url {
-  margin: 0 0 12px;
+  margin: 0 0 6px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-accent);
   word-break: break-all;
   line-height: 1.5;
@@ -422,7 +446,7 @@ a:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .tag {
@@ -437,21 +461,21 @@ a:hover {
 
 /* ── Note ── */
 .item-note {
-  margin: 0 0 14px;
-  padding: 12px 16px;
+  margin: 0 0 8px;
+  padding: 8px 12px;
   border-radius: var(--radius);
   background: var(--color-note-bg);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 13px;
+  line-height: 1.6;
   white-space: pre-wrap;
 }
 
 /* ── Editor ── */
 .item-editor {
-  margin: 0 0 14px;
-  padding: 16px;
+  margin: 0 0 8px;
+  padding: 12px;
   border-radius: var(--radius);
   background: var(--color-note-bg);
   border: 1px solid var(--color-border-light);
@@ -472,13 +496,13 @@ a:hover {
 }
 
 .item-editor input {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .item-editor textarea {
   resize: vertical;
-  min-height: 80px;
-  margin-bottom: 10px;
+  min-height: 60px;
+  margin-bottom: 6px;
 }
 
 .item-editor input:focus,
@@ -547,13 +571,13 @@ button:disabled {
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
-  padding-top: 14px;
+  padding-top: 8px;
   border-top: 1px solid var(--color-border-light);
 }
 
 /* ── Empty State ── */
 .empty {
-  padding: 64px 24px;
+  padding: 40px 24px;
   border-radius: var(--radius);
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
@@ -571,7 +595,7 @@ button:disabled {
   justify-content: center;
   gap: 6px;
   flex-shrink: 0;
-  padding-bottom: 32px;
+  padding: 12px 0;
   font-family: var(--font-sans);
   font-size: 14px;
 }
@@ -610,7 +634,7 @@ button:disabled {
 /* ── Responsive ── */
 @media (max-width: 860px) {
   .toolbar {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
   }
 
   .toolbar .search {
@@ -618,7 +642,7 @@ button:disabled {
   }
 
   .page-header h1 {
-    font-size: 30px;
+    font-size: 24px;
   }
 
   .item-actions {
@@ -629,15 +653,15 @@ button:disabled {
 @media (max-width: 560px) {
   .page {
     width: min(100% - 20px, 960px);
-    padding: 28px 0 0;
+    padding: 16px 0 0;
   }
 
   .page-header h1 {
-    font-size: 26px;
+    font-size: 22px;
   }
 
   .subtitle {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .toolbar {
@@ -645,10 +669,123 @@ button:disabled {
   }
 
   .item-card {
-    padding: 16px 18px;
+    padding: 12px 14px;
   }
 
   .item-title {
-    font-size: 17px;
+    font-size: 16px;
+  }
+}
+
+
+/* === Compact Layout === */
+.layout-compact .page {
+  padding-top: 12px;
+}
+
+.layout-compact .page-header {
+  margin-bottom: 8px;
+}
+
+.layout-compact .page-header h1 {
+  font-size: 22px;
+}
+
+.layout-compact .subtitle {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.layout-compact .inline-stats {
+  font-size: 12px;
+}
+
+.layout-compact .toolbar {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.layout-compact .list-wrapper {
+  padding-bottom: 6px;
+}
+
+.layout-compact .list {
+  gap: 6px;
+}
+
+.layout-compact .item-card {
+  padding: 10px 14px;
+}
+
+.layout-compact .item-meta {
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.layout-compact .item-title {
+  font-size: 15px;
+  margin-bottom: 1px;
+}
+
+.layout-compact .item-url {
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.layout-compact .item-tags {
+  margin-bottom: 3px;
+}
+
+.layout-compact .item-note {
+  margin-bottom: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.layout-compact .item-editor {
+  margin-bottom: 4px;
+  padding: 8px;
+}
+
+.layout-compact .item-editor input,
+.layout-compact .item-editor textarea {
+  margin-bottom: 4px;
+}
+
+.layout-compact .item-editor textarea {
+  min-height: 50px;
+}
+
+.layout-compact .item-actions {
+  padding-top: 4px;
+}
+
+.layout-compact .date-header {
+  padding: 8px 0 4px;
+}
+
+.layout-compact .date-header:first-child {
+  padding-top: 0;
+}
+
+.layout-compact .pager {
+  padding: 8px 0;
+}
+
+.layout-compact .empty {
+  padding: 28px 20px;
+}
+
+.layout-compact .editor-actions {
+  gap: 4px;
+}
+
+@media (max-width: 560px) {
+  .layout-compact .item-card {
+    padding: 8px 12px;
+  }
+
+  .layout-compact .item-title {
+    font-size: 14px;
   }
 }

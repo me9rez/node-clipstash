@@ -30,6 +30,14 @@ const editingTags = ref('');
 
 const viewMode = ref('flat');
 
+const compactMode = ref(false);
+
+function toggleCompact() {
+  compactMode.value = !compactMode.value;
+  document.documentElement.classList.toggle('layout-compact', compactMode.value);
+  localStorage.setItem('clipstash_layout', compactMode.value ? 'compact' : 'comfortable');
+}
+
 const hasPrev = computed(() => offset.value > 0);
 const hasNext = computed(() => offset.value + limit.value < total.value);
 
@@ -94,6 +102,11 @@ watch([q, type, status], () => {
 });
 
 onMounted(async () => {
+  const saved = localStorage.getItem('clipstash_layout');
+  if (saved === 'compact') {
+    compactMode.value = true;
+    document.documentElement.classList.add('layout-compact');
+  }
   await Promise.all([loadStats(), loadItems()]);
 });
 
@@ -238,14 +251,23 @@ function splitTags(tags: string | null) {
       <button @click="loadItems" :disabled="loading">
         {{ loading ? '刷新中...' : '刷新' }}
       </button>
-      <div class="view-toggle">
-        <button :class="{ active: viewMode === 'flat' }" @click="viewMode = 'flat'">
-          平铺
+        <div class="view-toggle">
+          <button :class="{ active: viewMode === 'flat' }" @click="viewMode = 'flat'">
+            平铺
+          </button>
+          <button :class="{ active: viewMode === 'grouped' }" @click="viewMode = 'grouped'">
+            按天
+          </button>
+        </div>
+
+        <button
+          class="compact-toggle"
+          :class="{ active: compactMode }"
+          @click="toggleCompact"
+          title="紧凑模式"
+        >
+          紧凑
         </button>
-        <button :class="{ active: viewMode === 'grouped' }" @click="viewMode = 'grouped'">
-          按天
-        </button>
-      </div>
     </div>
 
     <div class="list-wrapper">

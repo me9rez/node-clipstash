@@ -1,5 +1,9 @@
 # Clipstash — 开发者指南
 
+## 设计规范
+
+- DESIGN.md
+
 ## 包管理
 
 - 使用 **pnpm**（清单 `packageManager: pnpm@10.33.3`），不要用 `npm`。

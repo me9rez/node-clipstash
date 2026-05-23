@@ -28,25 +28,25 @@
   "author": "me9rez",
   "license": "MIT",
   "dependencies": {
-    "@hono/node-server": "^2.0.2",
+    "@hono/node-server": "^2.0.3",
     "@lucide/vue": "^1.16.0",
     "clipboardy": "^5.3.1",
-    "hono": "^4.12.19",
+    "hono": "^4.12.22",
     "node-notifier": "^10.0.1",
     "open": "^11.0.0",
     "type-flag": "^4.3.0",
     "vue-router": "^5.0.7"
   },
   "devDependencies": {
-    "@types/node": "^25.8.0",
+    "@types/node": "^25.9.1",
     "@types/node-notifier": "^8.0.5",
     "@vitejs/plugin-vue": "^6.0.7",
     "esbuild": "^0.28.0",
     "tsdown": "^0.22.0",
-    "tsx": "^4.22.1",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3",
-    "vite": "^8.0.13",
-    "vitest": "^4.1.6",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7",
     "vue": "^3.5.34"
   }
 }

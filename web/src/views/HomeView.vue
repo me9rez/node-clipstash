@@ -5,6 +5,7 @@ import {
   List,
   CalendarDays,
   LayoutGrid,
+  Globe,
   AlignVerticalJustifyStart,
 } from '@lucide/vue';
 import {
@@ -15,6 +16,7 @@ import {
 } from '../api.js';
 import type { Item, Stats } from '../api.js';
 import { useAuth } from '../useAuth.js';
+import { getMainDomain, getSubdomainLabel } from '../domain.js';
 
 const { currentUser } = useAuth();
 
@@ -82,6 +84,92 @@ const groupedItems = computed(() => {
     items: group,
   }));
 });
+interface SourceGroup {
+  label: string;
+  count: number;
+  items: Item[];
+  children?: { label: string; items: Item[] }[];
+}
+
+const sourceGroupedItems = computed(() => {
+  function sortByDateDesc(arr: Item[]): Item[] {
+    return [...arr].sort((a, b) => {
+      if (!a.first_seen_at) return 1;
+      if (!b.first_seen_at) return -1;
+      return b.first_seen_at.localeCompare(a.first_seen_at);
+    });
+  }
+
+  const githubItems = items.value.filter((i) => i.type === 'github-repo');
+  const urlItems = items.value.filter((i) => i.type === 'url');
+
+  function makeGithubGroups(list: Item[]): SourceGroup[] {
+    const map = new Map<string, Item[]>();
+    for (const item of list) {
+      const key = item.owner || '未知作者';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, groupItems]) => ({
+        label,
+        count: groupItems.length,
+        items: sortByDateDesc(groupItems),
+      }));
+  }
+
+  function makeUrlGroups(list: Item[]): SourceGroup[] {
+    const domainMap = new Map<string, { direct: Item[]; subs: Map<string, Item[]> }>();
+    for (const item of list) {
+      const host = item.host || '';
+      const main = getMainDomain(host);
+      if (!domainMap.has(main)) {
+        domainMap.set(main, { direct: [], subs: new Map() });
+      }
+      const entry = domainMap.get(main)!;
+      const sub = getSubdomainLabel(host);
+      if (sub === null) {
+        entry.direct.push(item);
+      } else {
+        if (!entry.subs.has(sub)) entry.subs.set(sub, []);
+        entry.subs.get(sub)!.push(item);
+      }
+    }
+    return [...domainMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, { direct, subs }]) => ({
+        label,
+        count: direct.length + [...subs.values()].reduce((s, arr) => s + arr.length, 0),
+        items: sortByDateDesc(direct),
+        children: [...subs.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([subLabel, subItems]) => ({
+            label: subLabel,
+            items: sortByDateDesc(subItems),
+          })),
+      }));
+  }
+
+  const result: SourceGroup[] = [];
+
+  if (type.value === 'all') {
+    if (githubItems.length > 0) {
+      result.push({ label: 'GitHub', count: githubItems.length, items: [] });
+      result.push(...makeGithubGroups(githubItems));
+    }
+    if (urlItems.length > 0) {
+      result.push({ label: '链接', count: urlItems.length, items: [] });
+      result.push(...makeUrlGroups(urlItems));
+    }
+  } else if (type.value === 'github-repo') {
+    result.push(...makeGithubGroups(githubItems));
+  } else if (type.value === 'url') {
+    result.push(...makeUrlGroups(urlItems));
+  }
+
+  return result;
+});
 
 function formatGroupDate(dateStr: string | null) {
   if (!dateStr) return '未知日期';
@@ -119,7 +207,7 @@ onMounted(async () => {
     document.documentElement.classList.add('layout-compact');
   }
   const savedView = localStorage.getItem('clipstash_view');
-  if (savedView === 'grouped' || savedView === 'grid') {
+  if (savedView === 'grouped' || savedView === 'grid' || savedView === 'source') {
     viewMode.value = savedView;
   }
   await Promise.all([loadStats(), loadItems()]);
@@ -277,6 +365,9 @@ function splitTags(tags: string | null) {
           <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="网格">
             <LayoutGrid :size="16" />
           </button>
+          <button :class="{ active: viewMode === 'source' }" @click="viewMode = 'source'" title="按来源">
+            <Globe :size="16" />
+          </button>
         </div>
         <div class="view-toggle">
           <button
@@ -358,7 +449,7 @@ function splitTags(tags: string | null) {
           </article>
         </template>
 
-        <template v-else>
+        <template v-else-if="viewMode === 'grouped'">
           <template v-for="group in groupedItems" :key="group.dateKey">
             <div class="date-header">
               <span class="date-label">{{ group.label }}</span>
@@ -421,6 +512,138 @@ function splitTags(tags: string | null) {
                 <button class="btn-danger-ghost" @click="removeItem(item)">删除</button>
               </div>
             </article>
+          </template>
+        </template>
+
+        <template v-else-if="viewMode === 'source'">
+          <template v-for="group in sourceGroupedItems" :key="group.label">
+            <div class="source-header" :class="{ 'source-section': group.items.length === 0 && !group.children }">
+              <span class="source-label">{{ group.label }}</span>
+              <span class="source-count">{{ group.count }} 条</span>
+            </div>
+            <article
+              v-for="item in group.items"
+              :key="item.id"
+              class="item-card"
+              :class="{ archived: item.status === 'archived' }"
+            >
+              <div class="item-meta">
+                <span class="badge" :class="item.type">
+                  {{ item.type === 'github-repo' ? 'GitHub' : 'URL' }}
+                </span>
+                <span class="status-dot" :class="item.status"></span>
+                <span class="meta-text">{{ hostLabel(item) }}</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-text">copied {{ item.seen_count }}x</span>
+              </div>
+
+              <h2 class="item-title">
+                <a href="#" @click.prevent="openUrl(item.url)">
+                  {{ item.title || item.url }}
+                </a>
+              </h2>
+
+              <p class="item-url">{{ item.url }}</p>
+
+              <div class="item-tags" v-if="item.tags">
+                <span v-for="tag in splitTags(item.tags)" :key="tag" class="tag">
+                  #{{ tag }}
+                </span>
+              </div>
+
+              <p v-if="item.note && editingId !== item.id" class="item-note">
+                {{ item.note }}
+              </p>
+
+              <div v-if="editingId === item.id" class="item-editor">
+                <input v-model="editingTags" placeholder="tags，例如：frontend, read-later" />
+                <textarea v-model="editingNote" rows="3" placeholder="写一点备注..." />
+                <div class="editor-actions">
+                  <button class="btn-primary" @click="saveEdit(item)">保存</button>
+                  <button class="btn-ghost" @click="cancelEdit">取消</button>
+                </div>
+              </div>
+
+              <div class="item-actions">
+                <button v-if="item.status !== 'read'" class="btn-ghost" @click="setStatus(item, 'read')">
+                  已读
+                </button>
+                <button v-if="item.status !== 'unread'" class="btn-ghost" @click="setStatus(item, 'unread')">
+                  未读
+                </button>
+                <button v-if="item.status !== 'archived'" class="btn-ghost" @click="setStatus(item, 'archived')">
+                  归档
+                </button>
+                <button class="btn-ghost" @click="startEdit(item)">备注</button>
+                <button class="btn-danger-ghost" @click="removeItem(item)">删除</button>
+              </div>
+            </article>
+
+            <template v-if="group.children">
+              <template v-for="child in group.children" :key="child.label">
+                <div class="source-subheader">
+                  <span class="source-sublabel">{{ child.label }}</span>
+                  <span class="source-subcount">{{ child.items.length }} 条</span>
+                </div>
+                <article
+                  v-for="item in child.items"
+                  :key="item.id"
+                  class="item-card"
+                  :class="{ archived: item.status === 'archived' }"
+                >
+                  <div class="item-meta">
+                    <span class="badge" :class="item.type">
+                      {{ item.type === 'github-repo' ? 'GitHub' : 'URL' }}
+                    </span>
+                    <span class="status-dot" :class="item.status"></span>
+                    <span class="meta-text">{{ hostLabel(item) }}</span>
+                    <span class="meta-sep">·</span>
+                    <span class="meta-text">copied {{ item.seen_count }}x</span>
+                  </div>
+
+                  <h2 class="item-title">
+                    <a href="#" @click.prevent="openUrl(item.url)">
+                      {{ item.title || item.url }}
+                    </a>
+                  </h2>
+
+                  <p class="item-url">{{ item.url }}</p>
+
+                  <div class="item-tags" v-if="item.tags">
+                    <span v-for="tag in splitTags(item.tags)" :key="tag" class="tag">
+                      #{{ tag }}
+                    </span>
+                  </div>
+
+                  <p v-if="item.note && editingId !== item.id" class="item-note">
+                    {{ item.note }}
+                  </p>
+
+                  <div v-if="editingId === item.id" class="item-editor">
+                    <input v-model="editingTags" placeholder="tags，例如：frontend, read-later" />
+                    <textarea v-model="editingNote" rows="3" placeholder="写一点备注..." />
+                    <div class="editor-actions">
+                      <button class="btn-primary" @click="saveEdit(item)">保存</button>
+                      <button class="btn-ghost" @click="cancelEdit">取消</button>
+                    </div>
+                  </div>
+
+                  <div class="item-actions">
+                    <button v-if="item.status !== 'read'" class="btn-ghost" @click="setStatus(item, 'read')">
+                      已读
+                    </button>
+                    <button v-if="item.status !== 'unread'" class="btn-ghost" @click="setStatus(item, 'unread')">
+                      未读
+                    </button>
+                    <button v-if="item.status !== 'archived'" class="btn-ghost" @click="setStatus(item, 'archived')">
+                      归档
+                    </button>
+                    <button class="btn-ghost" @click="startEdit(item)">备注</button>
+                    <button class="btn-danger-ghost" @click="removeItem(item)">删除</button>
+                  </div>
+                </article>
+              </template>
+            </template>
           </template>
         </template>
 

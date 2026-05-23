@@ -18,13 +18,13 @@ const router = useRouter();
   margin: 24px 0 16px;
   background: none;
   border: none;
-  color: #DA7756;
+  color: var(--color-accent);
   cursor: pointer;
   font-size: 14px;
   padding: 0;
 }
 
 .back-link:hover {
-  color: #C4684A;
+  color: var(--color-accent-hover);
 }
 </style>

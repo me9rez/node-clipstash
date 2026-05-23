@@ -81,14 +81,14 @@ async function handleLogin() {
   max-width: 400px;
   margin: 80px auto 0;
   padding: 48px 40px;
-  background: #FEFDFB;
+  background: var(--color-surface);
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
 }
 
 .login-card .eyebrow {
   text-align: center;
-  color: #DA7756;
+  color: var(--color-accent);
   font-weight: 600;
   letter-spacing: 0.05em;
   margin-bottom: 4px;
@@ -102,7 +102,7 @@ async function handleLogin() {
 
 .login-card .subtitle {
   text-align: center;
-  color: #8C7A6B;
+  color: var(--color-text-secondary);
   margin: 0 0 32px;
   font-size: 14px;
 }
@@ -122,26 +122,27 @@ async function handleLogin() {
 .login-form label span {
   font-size: 13px;
   font-weight: 600;
-  color: #5C4F42;
+  color: var(--color-text-secondary);
 }
 
 .login-form input {
   padding: 10px 14px;
-  border: 1px solid #D4C8BC;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 15px;
   font-family: inherit;
-  background: #FAF9F7;
+  background: var(--color-bg);
+  color: var(--color-text);
   outline: none;
   transition: border-color 0.15s;
 }
 
 .login-form input:focus {
-  border-color: #DA7756;
+  border-color: var(--color-accent);
 }
 
 .login-error {
-  color: #D44;
+  color: var(--color-danger);
   font-size: 13px;
   margin: -4px 0;
 }

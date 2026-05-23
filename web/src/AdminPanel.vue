@@ -267,9 +267,9 @@ function closeNewToken() {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  background: #FEFDFB;
+  background: var(--color-surface);
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
   padding: 32px;
 }
 
@@ -279,7 +279,7 @@ function closeNewToken() {
 }
 
 .admin-error {
-  color: #D44;
+  color: var(--color-danger);
   font-size: 13px;
   margin: 0 0 12px;
 }
@@ -287,13 +287,13 @@ function closeNewToken() {
 .admin-section {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #E8E0D8;
+  border-top: 1px solid var(--color-border);
 }
 
 .admin-section h3 {
   margin: 0 0 12px;
   font-size: 16px;
-  color: #5C4F42;
+  color: var(--color-text-secondary);
 }
 
 .admin-create-row {
@@ -304,18 +304,19 @@ function closeNewToken() {
 
 .admin-input {
   padding: 8px 12px;
-  border: 1px solid #D4C8BC;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
-  background: #FAF9F7;
+  background: var(--color-bg);
+  color: var(--color-text);
   outline: none;
   flex: 1;
   min-width: 0;
 }
 
 .admin-input:focus {
-  border-color: #DA7756;
+  border-color: var(--color-accent);
 }
 
 .admin-btn-sm {
@@ -335,7 +336,7 @@ function closeNewToken() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #F0E8E0;
+  border-bottom: 1px solid var(--color-border-light);
   gap: 8px;
 }
 
@@ -348,8 +349,8 @@ function closeNewToken() {
   margin-left: 6px;
   padding: 1px 6px;
   font-size: 11px;
-  background: #FDD;
-  color: #DA7756;
+  background: var(--color-orange-bg);
+  color: var(--color-accent);
   border-radius: 4px;
   vertical-align: middle;
 }
@@ -357,7 +358,7 @@ function closeNewToken() {
 .admin-date {
   margin-left: 8px;
   font-size: 12px;
-  color: #A89A8C;
+  color: var(--color-text-tertiary);
 }
 
 .user-actions {
@@ -371,7 +372,7 @@ function closeNewToken() {
   gap: 8px;
   margin-top: 10px;
   padding: 10px 0;
-  border-top: 1px dashed #E8E0D8;
+  border-top: 1px dashed var(--color-border);
 }
 
 .token-info {
@@ -384,8 +385,8 @@ function closeNewToken() {
 
 .token-preview {
   font-size: 12px;
-  color: #8C7A6B;
-  background: #F5F0EC;
+  color: var(--color-text-secondary);
+  background: var(--color-note-bg);
   padding: 2px 6px;
   border-radius: 3px;
   font-family: monospace;
@@ -408,7 +409,7 @@ function closeNewToken() {
 }
 
 .token-reveal-card {
-  background: #FFF;
+  background: var(--color-surface);
   padding: 32px;
   border-radius: 12px;
   max-width: 480px;
@@ -416,7 +417,7 @@ function closeNewToken() {
 }
 
 .token-reveal-warn {
-  color: #DA7756;
+  color: var(--color-accent);
   font-weight: 600;
   margin: 0 0 16px;
 }
@@ -424,7 +425,7 @@ function closeNewToken() {
 .token-full {
   display: block;
   padding: 12px;
-  background: #F5F0EC;
+  background: var(--color-note-bg);
   border-radius: 6px;
   font-size: 14px;
   word-break: break-all;
